@@ -1,4 +1,5 @@
 (defpackage :cocoagain
+  (:documentation "Closely after byulparan/cl-nextstep etc. Reimplemented for learning.")
   (:use :cl :alexandria)
   ;; (:export
   ;;  ;; core-foundation.lisp
