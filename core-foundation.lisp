@@ -102,3 +102,48 @@
 ;; ────────────────────────────────────────────────────────────────────── Colour
 
 ;; ─────────────────────────────────────────────────────────────────── Structure
+
+(cffi:defcstruct (point :class %point) (x :double) (y :double))
+
+(defstruct (point (:constructor point (x y))) x y)
+
+(defmethod cffi:translate-from-foreign (p (type %point))
+  (cffi:with-foreign-slots ((x y) p (:struct point)) (point x y)))
+
+(defmethod cffi:translate-into-foreign-memory (point (type %point) p)
+  (cffi:with-foreign-slots ((x y) p (:struct point))
+    (setf x (coerce (point-x point) 'double-float)
+          y (coerce (point-y point) 'double-float))))
+
+(cffi:defcstruct (size :class %size) (width :double) (height :double))
+
+(defstruct (size (:constructor size (width height))) width height)
+
+(defmethod cffi:translate-from-foreign (s (type %size))
+  (cffi:with-foreign-slots ((width height) s (:struct size)) (size width height)))
+
+(defmethod cffi:translate-into-foreign-memory (size (type %size) s)
+  (cffi:with-foreign-slots ((width height) s (:struct size))
+    (setf width (coerce (size-width size) 'double-float)
+          height (coerce (size-height size) 'double-float))))
+
+(cffi:defcstruct (rect :class %rect) (origin (:struct point)) (size (:struct size)))
+
+(defstruct (rect (:constructor rect (x y width height))) x y width height)
+
+(defmethod cffi:translate-from-foreign (r (type %rect))
+  (cffi:with-foreign-slots ((origin size) r (:struct rect))
+    (rect (point-x origin)
+          (point-y origin)
+          (size-width size)
+          (size-height size))))
+
+(defmethod cffi:translate-into-foreign-memory (rect (type %rect) r)
+  (let* ((origin (cffi:foreign-slot-pointer r '(:struct rect) 'origin))
+         (size (cffi:foreign-slot-pointer r '(:struct rect) 'size)))
+    (cffi:with-foreign-slots ((x y) origin (:struct point))
+      (cffi:with-foreign-slots ((width height) size (:struct size))
+        (setf x (coerce (rect-x rect) 'double-float)
+              y (coerce (rect-y rect) 'double-float)
+              width (coerce (rect-width rect) 'double-float)
+              height (coerce (rect-height rect) 'double-float))))))

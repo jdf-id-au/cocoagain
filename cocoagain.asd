@@ -10,12 +10,13 @@
                :cffi
                :cffi-libffi
                :float-features
-               :bordeax-threads
+               :bordeaux-threads
                :trivial-main-thread)
   :serial t
   :components ((:file "package")
                (:file "core-foundation")
-               (:file "application")))
+               (:file "id-map")
+               (:file "application")
+               (:file "window")))
 
 (pushnew :cocoagain *features*)
-

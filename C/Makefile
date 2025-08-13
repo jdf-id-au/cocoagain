@@ -5,5 +5,5 @@ FRAMEWORKS=-framework Cocoa -framework QuartzCore \
 -framework Metal -framework MetalKit
 
 ../libcocoagain.dylib: \
-application.m
+application.m window.m view.m
 	cc -dynamiclib $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) $^ -o $@

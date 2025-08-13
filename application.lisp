@@ -1,5 +1,24 @@
+;; (ql:quickload :cocoagain)
+
 (in-package :cocoagain)
 
+(defconstant +NSActivityIdleDisplaySleepDisabled+ (ash 1 40))
+(defconstant +NSActivityIdleSystemSleepDisabled+ (ash 1 20)) 
+(defconstant +NSActivitySuddenTerminationDisabled+ (ash 1 14)) 
+(defconstant +NSActivityAutomaticTerminationDisabled+ (ash 1 15)) 
+(defconstant +NSActivityUserInitiated+ (logior #x00FFFFFF +NSActivityIdleSystemSleepDisabled+)) 
+(defconstant +NSActivityUserInitiatedAllowingIdleSystemSleep+ (logand 
+							       +NSActivityUserInitiated+
+							       (lognot +NSActivityIdleSystemSleepDisabled+))) 
+(defconstant +NSActivityBackground+ #x000000FF) 
+(defconstant +NSActivityLatencyCritical+ #xFF00000000)
+
+(defconstant +NSApplicationActivationPolicyRegular+ 0)
+(defconstant +NSApplicationActivationPolicyAccessory+ 1)
+(defconstant +NSApplicationActivationPolicyProhibited+ 2)
+
+(defvar *dispatch-id-map* (make-id-map))
+(defvar *widget-id-map* (make-hash-table))
 (defvar *startup-hooks* nil)
 
 (cffi:defcallback app-delegate-callback :void ((id :int))
