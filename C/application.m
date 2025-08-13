@@ -1,12 +1,4 @@
-// after byulparan/cl-nextstep, slower so I can understand
-
-#import <Cocoa/Cocoa.h>
-
-@interface App: NSApplication<NSApplicationDelegate> {
-  void(*delegateCallback)(int);
-  void(*widgetCallback)(id);
-}
-@end
+#import "application.h"
 
 @implementation App
 -(void) setDelegateCallback: (void(*)(int)) cb { delegateCallback = cb; }

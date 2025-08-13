@@ -1,3 +1,5 @@
+;; after byulparan/cl-nextstep, slower so I can understand
+
 ;; load (vs eval) this i.e. asdf:load-system
 
 ;; Why is this needed?

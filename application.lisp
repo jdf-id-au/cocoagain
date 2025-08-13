@@ -19,8 +19,8 @@
 (defvar *widget-id-map* (make-hash-table))
 (defvar *startup-hooks* nil)
 
-(cffi:defcallback app-delegate-callback :void ((id :int))
-  (case id
+(cffi:defcallback app-delegate-callback :void ((action :int))
+  (case action
     (0 (dolist (hook *startup-hooks*) (funcall hook)))
     (1 (let* ((windows (objc
                         (objc "App" "sharedApplication" :pointer)
