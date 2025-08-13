@@ -1,5 +1,3 @@
-;; (ql:quickload :cocoagain)
-
 (in-package :cocoagain)
 
 (defconstant +NSActivityIdleDisplaySleepDisabled+ (ash 1 40))
@@ -47,7 +45,7 @@
         (error (c)
           (break (format nil "Caught signal while dispatching event: \"~a\"" c)))))))
 
-(defun queue-for-event-loop (thunk)
+(defun queue-for-event-loop (thunk)q
   (let* ((id (assign-id-map-id *dispatch-id-map* thunk)))
     (cffi:foreign-funcall "dispatch_async_f"
                           :pointer (cffi:foreign-symbol-pointer "_dispatch_main_q")
@@ -69,6 +67,8 @@
                       :pointer (cffi:callback app-dispatch-callback))
                      ,result))
            (t (queue-for-event-loop (lambda () ,@body))))))
+
+(format t "About to run!")
 
 (let* ((running-p nil)) ; ───────────────────────────────────────────────── Run!
   (defun start-event-loop ()
@@ -93,7 +93,7 @@
              (objc ns-app "setDelegate:"
                    :pointer ns-app)
              (make-default-menubar ns-app)
-             (obj ns-app "run")
+             (objc ns-app "run")
              (release pool)))))
       :start-event-loop)))
 

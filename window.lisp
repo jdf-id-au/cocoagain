@@ -3,7 +3,7 @@
 (defvar *window-table* (make-hash-table))
 
 (cffi:defcallback window-callback :void ((id :int) (event-type :int))
-  (when-let* ((window (gethash id *window-table))
+  (when-let* ((window (gethash id *window-table*))
               (handle-fn (case event-type
                            (0 (close-fn window)))))
     (handler-case (funcall handle-fn)

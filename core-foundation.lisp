@@ -1,8 +1,10 @@
 (in-package :cocoagain)
 
+(format t "Loading Core Foundation support~%")
+
 ;; ───────────────────────────────────────────────────────────────────── Objects
 
-(cffi:defcfun ("obj_getClass" cls) :pointer
+(cffi:defcfun ("objc_getClass" cls) :pointer
   (name :string))
 
 (cffi:defcfun ("sel_getUid" sel) :pointer
@@ -13,37 +15,41 @@
 (defmethod cocoa-ref ((self #+sbcl sb-sys:system-area-pointer))
   self)
 
-(defmethod cococa-ref ((self string))
+(defmethod cocoa-ref ((self string))
   (let* ((object (cls self)))
     (assert (not (cffi:null-pointer-p object)) nil
-            "Can't find NSClass \"~a\"" object)
+            "Can't find NSClass \"~a\"" self)
     object))
 
 (defmacro objc (instance sel &rest rest)
   (with-gensyms (object selector)
-    `(let* ((,object (cocoa-ref ,instance))
-            (,selector (sel ,sel)))
-       (assert (not (cffi:null-pointer-p ,object)) nil
-               "Selector \"~a\" used with null pointer" ,sel)
-       (cffi:foreign-funcall "objc_msgSend"
-                             :pointer ,object
-                             :pointer ,selector
-                             ,@rest))))
+    `(progn
+       ;;(format t "objc ~a ~a" ',instance ',sel)
+       (let* ((,object (cocoa-ref ,instance))
+              (,selector (sel ,sel)))
+         (assert (not (cffi:null-pointer-p ,object)) nil
+                 "Selector \"~a\" used with null pointer" ,sel)
+         (cffi:foreign-funcall "objc_msgSend"
+                               :pointer ,object
+                               :pointer ,selector
+                               ,@rest)))))
 
 #+x86-64
 (defmacro objc-stret (return-type instance sel &rest rest)
   (with-gensyms (object selector result)
-    `(let* ((,object (cocoa-ref ,instance))
-            (,selector (sel ,sel)))
-       (assert (not (cffi:null-pointer-p ,object)) nil
-               "Selector \"~a\" used with null pointer" ,sel)
-       (cffi:with-foreign-objects ((,result '(:struct ,return-type)))
-         (cffi:foreign-funcall "objc_msgSend_stret"
-                               :pointer ,result
-                               :pointer ,object
-                               :pointer ,selector
-                               ,@rest)
-         (cffi:mem-ref ,result '(:struct ,return-type))))))
+    `(progn
+       ;;(format t "objc ~a ~a" ',instance ',sel)
+       (let* ((,object (cocoa-ref ,instance))
+              (,selector (sel ,sel)))
+         (assert (not (cffi:null-pointer-p ,object)) nil
+                 "Selector \"~a\" used with null pointer" ,sel)
+         (cffi:with-foreign-objects ((,result '(:struct ,return-type)))
+           (cffi:foreign-funcall "objc_msgSend_stret"
+                                 :pointer ,result
+                                 :pointer ,object
+                                 :pointer ,selector
+                                 ,@rest)
+           (cffi:mem-ref ,result '(:struct ,return-type)))))))
 
 (defun alloc (cls) (objc cls "alloc" :pointer))
 

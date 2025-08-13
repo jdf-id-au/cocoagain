@@ -7,3 +7,6 @@ FRAMEWORKS=-framework Cocoa -framework QuartzCore \
 ../libcocoagain.dylib: \
 application.m window.m view.m
 	cc -dynamiclib $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) $^ -o $@
+
+../check: check.m ../libcocoagain.dylib
+	cc $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) -lcocoagain $< -o $@

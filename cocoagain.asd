@@ -1,5 +1,6 @@
 ;; load (vs eval) this i.e. asdf:load-system
 
+;; Why is this needed?
 ;; (asdf/driver:with-current-directory nil
 ;;   (let* ((process-path (concatenate 'string (namestring *default-pathname-defaults*)
 ;;                                     "sbcl.app/Contents/MacOS/sbcl")))
@@ -14,9 +15,12 @@
                :trivial-main-thread)
   :serial t
   :components ((:file "package")
-               (:file "core-foundation")
                (:file "id-map")
+               (:file "library")
+               (:file "core-foundation")
                (:file "application")
-               (:file "window")))
+               (:file "window")
+               (:file "view")
+               (:file "core-graphics")))
 
 (pushnew :cocoagain *features*)
