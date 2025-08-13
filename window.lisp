@@ -29,7 +29,7 @@
           (rect-width rect)
           (rect-height rect))))
 
-(defmethod initialise-instance :after
+(defmethod initialize-instance :after
     ((self window) &key rect (x 0) (y 0) (w 400) (h 200)
                      style-mask (closable t) (resizable t) (miniaturisable t))
   (with-slots (cocoa-ref id g-id title close-fn) self

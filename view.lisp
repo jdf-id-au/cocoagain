@@ -83,7 +83,7 @@
 
 (defclass view (base-view) ())
 
-(defmethod initialise-instance :after
+(defmethod initialize-instance :after
     ((self view)
      &key (x 0) (y 0) (w 400) (h 200))
   (setf (cocoa-ref self)
