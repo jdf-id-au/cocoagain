@@ -5,9 +5,11 @@
          (concatenate 'string
                       (namestring (asdf:system-source-directory :cocoagain))
                       "libcocoagain.dylib")))
-   (format t "Loading ~a~%" path)
+   (format t "~%Loading ~a~%" path)
    path))
 
 (format t "Loaded~%")
 
 ;; NB 2025-08-13 14:14:53 does seem to succeed (although wouldn't print success message)
+;; ...doesn't always subsequently allow repl eval
+;; blocking main thread?? shouldn't yet

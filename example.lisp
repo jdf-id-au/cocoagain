@@ -1,4 +1,5 @@
 ;; C-c C-l sly-load-file cocoagain.asd
+;; (ql:quickload '(:alexandria :cffi :cffi-libffi :float-features :bordeaux-threads :trivial-main-thread))
 ;; (ql:quickload :cocoagain)
 
 (in-package :cocoagain)
@@ -32,9 +33,9 @@
 ;;                                  :title "mehoohhello"))
 
 (with-event-loop (:waitp t)
-  (let* ((window (make-instance 'window
+  (let* ((win (make-instance 'window
                                 :rect (in-screen-rect (rect 0 1000 720 450))
                                 :title "mehoohhello"))
          (view (make-instance '2d-canvas)))
-    (setf (content-view window) view)
-    (window-show window)))
+    (setf (content-view win) view)
+    (window-show win)))

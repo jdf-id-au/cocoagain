@@ -54,7 +54,7 @@
 (defun alloc (cls) (objc cls "alloc" :pointer))
 
 (defmethod init ((instance #+sbcl sb-sys:system-area-pointer))
-  (obj instance "init" :pointer))
+  (objc instance "init" :pointer))
 
 (defun new (cls) (objc (alloc cls) "init" :pointer))
 
@@ -97,13 +97,14 @@
   (let* ((len (1+ (* 3 (cffi:foreign-funcall "CFStringGetLength"
                                              :pointer cf-string
                                              :int)))))
-    (cffi:foreign-funcall "CFStringGetCString"
-                          :pointer cf-string
-                          :pointer buffer
-                          :int len
-                          :int 134217984 ; NSUTF8StringEncoding
-                          )
-    (cffi:foreign-string-to-lisp buffer)))
+    (cffi:with-foreign-objects ((buffer :char len))
+      (cffi:foreign-funcall "CFStringGetCString"
+                            :pointer cf-string
+                            :pointer buffer
+                            :int len
+                            :int 134217984 ; NSUTF8StringEncoding
+                            )
+      (cffi:foreign-string-to-lisp buffer))))
 
 ;; ────────────────────────────────────────────────────────────────────── Colour
 

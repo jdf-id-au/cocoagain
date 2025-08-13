@@ -45,7 +45,7 @@
         (error (c)
           (break (format nil "Caught signal while dispatching event: \"~a\"" c)))))))
 
-(defun queue-for-event-loop (thunk)q
+(defun queue-for-event-loop (thunk)
   (let* ((id (assign-id-map-id *dispatch-id-map* thunk)))
     (cffi:foreign-funcall "dispatch_async_f"
                           :pointer (cffi:foreign-symbol-pointer "_dispatch_main_q")

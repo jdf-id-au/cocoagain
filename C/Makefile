@@ -1,5 +1,6 @@
 CFLAGS=-std=c17 -g3 -pedantic -Wall -Wextra \
--fPIC -fsanitize=address,undefined
+-fPIC
+# -fsanitize=address,undefined
 
 OBJCFLAGS=-fno-objc-arc -fmodules -mmacos-version-min=12.4
 
