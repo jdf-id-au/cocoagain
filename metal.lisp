@@ -1,5 +1,11 @@
 (in-package :mtl)
 
+(defmacro dont-fail (form &rest message)
+  `(let ((pointer ,form))
+     (if (cffi:null-pointer-p pointer)
+         (error ,@message)
+         pointer)))
+
 (cffi:defcstruct (origin :class %origin)
   (x :unsigned-long) ; really
   (y :unsigned-long)
@@ -87,21 +93,35 @@
           far (coerce (viewport-far viewport) 'double-float))))
 
 (defun make-command-queue (device) ; ───────────────────────────── Command queue
-  (ns:objc device "newCommandQueue" :pointer))
+  (dont-fail
+   (ns:objc device "newCommandQueue" :pointer)
+   "Failed to create command queue."))
 
 (defun get-command-buffer (command-queue)
-  (ns:objc command-queue "commandBuffer" :pointer))
+  (dont-fail
+   (ns:objc command-queue "commandBuffer" :pointer)
+   "Failed to get command buffer."))
+
+(defun render-pass-descriptor (mtk-view)
+  (dont-fail
+   (ns:objc mtk-view "currentRenderPassDescriptor" :pointer)
+   "Failed to get current pass descriptor."))
 
 (defun get-render-command-encoder (command-buffer descriptor)
-  (ns:objc command-buffer "renderCommandEncoderWithDescriptor:" :pointer descriptor :pointer))
+  (dont-fail
+   (ns:objc command-buffer "renderCommandEncoderWithDescriptor:" :pointer descriptor :pointer)
+   "Failed to get render command encoder."))
 
-(defun present-drawable (command-buffer drawable) ; ───────────── Command buffer
+(defun drawable (mtk-view)
+  (ns:objc mtk-view "currentDrawable" :pointer))
+
+(defun present-drawable (command-buffer drawable)
   (ns:objc command-buffer "presentDrawable:" :pointer drawable))
 
 (defun commit (command-buffer)
   (ns:objc command-buffer "commit"))
 
-(defun set-viewport (command-encoder viewport) ; Command endcoder
+(defun set-viewport (command-encoder viewport)
   (ns:objc command-encoder "setViewport:" (:struct viewport) viewport))
 
 (defun set-render-pipeline-state (command-encoder pipeline-state)
@@ -144,12 +164,6 @@
 
 ;; ──────────────────────────────────────────────────────────────────── Pipeline
 
-(defmacro dont-fail (form &rest message)
-  `(let ((pointer ,form))
-     (if (cffi:null-pointer-p pointer)
-         (error ,@message)
-         pointer)))
-
 (defun make-library (device source &key (options (cffi:null-pointer)))
   (dont-fail
    (ns:objc device "newLibraryWithSource:options:error:"
@@ -186,7 +200,7 @@
   (ns:objc render-pipeline-descriptor "setDepthAttachmentPixelFormat:" :unsigned-int pixel-format))
 
 (defun make-vertex-descriptor ()
-  (ns::new "MTLVertexDescriptor"))
+  (ns::new "MTLVertexDescriptor")) ; TODO 2025-08-16 01:45:11 cleanup after?
 
 (defun set-vertex-descriptor-attribute (vertex-descriptor index format offset buffer-index)
   (let* ((attribute (ns:objc (ns:objc vertex-descriptor "attributes" :pointer)

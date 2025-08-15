@@ -106,7 +106,15 @@
     (if (cffi:null-pointer-p graphic-context) graphic-context ; ?
         (objc graphic-context "CGContext" :pointer))))
 
-(defclass mtk-view (base-view) ((%device :accessor %device))) ; ─── MetalTK view
+; ────────────────────────────────────────────────────────── Metal Tool Kit view
+
+(defclass mtk-context () ; TODO 2025-08-16 03:22:06 learn how this changes in complex scenes
+  ((pipeline-state :accessor pipeline-state)
+   (command-queue :accessor command-queue)))
+
+(defclass mtk-view (base-view)
+  ((device :accessor device)
+   (context :accessor context :initform (make-instance 'mtk-context))))
 
 (defmethod reshape ((self mtk-view)) ())
 
@@ -119,12 +127,10 @@
                      :pointer (cffi:callback view-draw-callback)
                      :pointer (cffi:callback view-event-callback)
                      :pointer)))
-    (setf (%device self) device)
+    (setf (device self) device)
     (objc view "setDelegate:" :pointer view)
     (setf (cocoa-ref self) view)
     (init self)))
-
-(defun device (mtk-view) (%device mtk-view))
 
 (defun color-pixel-format (mtk-view) (objc mtk-view "colorPixelFormat" :int))
 (defun depth-stencil-pixel-format (mtk-view) (objc mtk-view "depthStencilPixelFormat" :int))
