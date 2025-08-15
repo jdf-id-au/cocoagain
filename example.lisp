@@ -30,6 +30,7 @@
       ;;(format t "bounds ~a~%" (cg:display-bounds 0))
       (cg:set-rgb-fill-color ctx (random 1.0) (random 1.0) (random 1.0))
       (cg:fill-rect ctx r)
+      (cg:set-line-width ctx 10.0)
       (cg:set-rgb-stroke-color ctx (random 1.0) 0 0)
       (cg:move-to-point ctx (random w) (random h))
       #+nil(add-line-to-point ctx (random w) (random h))

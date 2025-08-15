@@ -18,6 +18,7 @@
   (:use cl)
   (:export
    #:set-rgb-fill-color
+   #:set-line-width
    #:fill-rect
    #:set-rgb-stroke-color
    #:move-to-point
