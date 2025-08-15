@@ -42,6 +42,7 @@
 
 (defclass base-view ()
   ((id :accessor id)
+   ;; g-id is monotonically increasing global id (class object shared slot)
    (g-id :initform 0 :accessor g-id :allocation :class)
    (cgl-context :accessor cgl-context)
    (cgl-pixel-forat :accessor cgl-pixel-format)
@@ -92,7 +93,7 @@
     ((self view)
      &key (x 0) (y 0) (w 400) (h 200))
   (setf (cocoa-ref self)
-        (objc (objc "View" "alloc" :pointer)
+        (objc (alloc "View")
               "initWithID:frame:drawFn:eventFn:"
               :int (id self)
               (:struct rect) (rect x y w h)

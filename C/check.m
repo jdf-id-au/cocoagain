@@ -44,6 +44,9 @@ int main(void) {
   [app setWidgetCallback: widgetCb];
   [app setDelegate: app];
   //NSLog(@"About to run");
+  unsigned char yep = 1;
+  NSNumber *mmhmm = [NSNumber numberWithBool: yep];
+  NSLog(@"numberWithBool: %@", [mmhmm stringValue]);
   [app run];
   [pool release];
 }

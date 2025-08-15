@@ -19,18 +19,13 @@
     (fill-rect ctx r)
     (set-rgb-stroke-color ctx (random 1.0) 0 0)
     (move-to-point ctx (random w) (random h))
-    (add-line-to-point ctx (random w) (random h))
+    (add-curve-to-point ctx (random w) (random h) (random w) (random h) (random w) (random h))
     (stroke-path ctx)
     ))
 
 ;; TODO find where view is stored and set `needsDisplay` when draw method updated
 
 (start-event-loop) ; NB reeval application Run! if broken
-
-;; (defvar *window*  (make-instance 'ns:window
-;;                                  :rect 
-;;                                  (ns:rect 0. 1000. 720. 450.)
-;;                                  :title "mehoohhello"))
 
 (with-event-loop (:waitp t)
   (let* ((win (make-instance 'window
@@ -39,3 +34,19 @@
          (view (make-instance '2d-canvas)))
     (setf (content-view win) view)
     (window-show win)))
+
+;; #+nil is Common Lisp semi-equivalent of Clojure #_
+#+nil (maphash #'(lambda (k v)
+             (format t "~S ~S~%" k v)) *view-table*)
+
+(defconstant +YES+ (objc "NSNumber" "numberWithBool:" :unsigned-char 1 :pointer))
+(defconstant +NO+ (objc "NSNumber" "numberWithBool:" :unsigned-char 0 :pointer))
+
+(defun redisplay ()
+  (let* ((latest-id (loop for k being each hash-key of *view-table* maximize k))
+         (latest-view (gethash latest-id *view-table*)))
+    ;; ugh still memory fault
+    latest-view
+    #+nil(objc latest-view "setValue:forKey:" :pointer +YES+ :string "needsDisplay")))
+
+(cocoa-ref (redisplay))
