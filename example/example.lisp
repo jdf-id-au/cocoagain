@@ -95,6 +95,8 @@
     (mtl::set-vertex-descriptor-attribute vd 0 mtl:+vertex-format-float3+ 0 0)
     (mtl::set-vertex-descriptor-layout vd 0 bytes-per-float 1 mtl:+vertex-step-function-per-vertex+)
     (mtl::set-vertex-descriptor pd vd)
+    ;; FIXME 2025-08-16 03:48:13 stubbornly not making ps
+    ;; Consider trying newRenderPipelineStateWithDescriptor:completionHandler: (async)?
     (setf (pipeline-state ctx) (mtl::make-render-pipeline-state (device view) pd)
           (command-queue ctx) (mtl::make-command-queue (device view)))
     (setf (content-view win) view)

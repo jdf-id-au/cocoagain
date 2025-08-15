@@ -224,9 +224,14 @@
                      :pointer err ; pointer to NSError
                      :pointer)))
       (if (cffi:null-pointer-p p)
-          (error "Failed to create render pipeline state. ~a"
-                 ;; FIXME 2025-08-16 01:38:25 is this the right level of indirection? 
-                 (ns:objc (cffi:mem-ref err :pointer) "localizedDescription"))
+          (error "Failed to create render pipeline state.~%~a ~a ~a ~a ~a"
+                 ;; FIXME 2025-08-16 01:38:25 is this the right level of indirection?
+                 ;; un-ref'd err given memory fault...
+                 device ; seemingly ok
+                 render-pipeline-descriptor ; seemingly ok
+                 p ; null
+                 err
+                 (ns:objc (cffi:mem-ref err :pointer) "localizedDescription")) ; NIL
           p))))
 
 (defun make-depth-stencil-descriptor ()
