@@ -144,19 +144,25 @@
 
 ;; ──────────────────────────────────────────────────────────────────── Pipeline
 
+(defmacro dont-fail (form &rest message)
+  `(let ((pointer ,form))
+     (if (cffi:null-pointer-p pointer)
+         (error ,@message)
+         pointer)))
+
 (defun make-library (device source &key (options (cffi:null-pointer)))
-  (let ((p
-          (ns:objc device "newLibraryWithSource:options:error:"
+  (dont-fail
+   (ns:objc device "newLibraryWithSource:options:error:"
                    :pointer (ns:autorelease (ns:make-ns-string source))
                    :pointer options
                    :pointer (cffi:null-pointer) ; FIXME 2025-08-16 00:12:19
-                   :pointer)))
-    (if (cffi:null-pointer-p p)
-        (error "Shader compilation failed:~% ~a" source)
-        p)))
+                   :pointer)
+   "Shader compilation failed: ~% ~a" source))
 
 (defun make-function (library name)
-  (ns:objc library "newFunctionWithName:" :pointer (ns:autorelease (ns:make-ns-string name)) :pointer))
+  (dont-fail
+   (ns:objc library "newFunctionWithName:" :pointer (ns:autorelease (ns:make-ns-string name)) :pointer)
+   "Failed to find function: ~a" name))
 
 (defun make-render-pipeline-descriptor ()
   (ns:new "MTLRenderPipelineDescriptor"))
@@ -197,14 +203,17 @@
     (ns:objc layout "setStepFunction:" :int step-function)))
 
 (defun make-render-pipeline-state (device render-pipeline-descriptor)
-  (let ((p
-          (ns:objc device "newRenderPipelineStateWithDescriptor:error:"
-                   :pointer render-pipeline-descriptor
-                   :pointer (cffi:null-pointer) ; FIXME 2025-08-15 23:42:52 is set to NSError** -- test/retrieve?
-                   :pointer)))
-    (if (cffi:null-pointer-p p)
-        (error "Failed to create render pipeline state.")
-        p)))
+  (cffi:with-foreign-object (err :pointer)
+    (let ((p
+            (ns:objc device "newRenderPipelineStateWithDescriptor:error:"
+                     :pointer render-pipeline-descriptor
+                     :pointer err ; pointer to NSError
+                     :pointer)))
+      (if (cffi:null-pointer-p p)
+          (error "Failed to create render pipeline state. ~a"
+                 ;; FIXME 2025-08-16 01:38:25 is this the right level of indirection? 
+                 (ns:objc (cffi:mem-ref err :pointer) "localizedDescription"))
+          p))))
 
 (defun make-depth-stencil-descriptor ()
   (ns:new "MTLDepthStencilDescriptor"))
