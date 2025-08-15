@@ -49,6 +49,11 @@
    (height :accessor height)
    (cocoa-ref :accessor cocoa-ref)))
 
+(defmethod initialize-instance :after ((self base-view) &key)
+  (setf (id self) (g-id self))
+  (incf (g-id self))
+  (setf (gethash (id self) *view-table*) self))
+
 (defmethod init ((self base-view)) ())
 (defmethod draw ((self base-view)) ())
 (defmethod release ((self base-view)) ())

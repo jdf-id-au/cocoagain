@@ -31,7 +31,7 @@
     (2 (dolist (hook #+sbcl sb-ext:*exit-hooks*) (funcall hook)))))
 
 (cffi:defcallback app-widget-callback :void ((id :pointer))
-  (let* ((task (gethash (cffi:pointer-address id) *widget-id-map*)))
+  (let* ((task (gethash (cffi:pointer-address id) *widget-id-map*))) 
     (when task (handler-case (funcall task id)
                  (error (c)
                    (break (format nil "Caught signal while handling widget callback: \"~a\"" c)))))))
@@ -43,7 +43,7 @@
     (when task
       (handler-case (funcall task)
         (error (c)
-          (break (format nil "Caught signal while dispatching event: \"~a\"" c)))))))
+          (break (format nil "Caught signal while dispatching event: \"~a\" for ~a using ~a" c id task)))))))
 
 (defun queue-for-event-loop (thunk)
   (let* ((id (assign-id-map-id *dispatch-id-map* thunk)))
@@ -67,8 +67,6 @@
                       :pointer (cffi:callback app-dispatch-callback))
                      ,result))
            (t (queue-for-event-loop (lambda () ,@body))))))
-
-(format t "About to run!")
 
 (let* ((running-p nil)) ; ───────────────────────────────────────────────── Run!
   (defun start-event-loop ()
