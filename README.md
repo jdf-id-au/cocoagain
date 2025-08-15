@@ -10,7 +10,7 @@ Read eval graphics loop, take two! In the grand tradition of (but much less soph
 - https://www.shadertoy.com/
 - https://github.com/oakes/play-cljc
 
-Also see the very half-baked `jdf/render` which uses BGFX and Clojure.
+Also see the very half-baked [`jdf/render`](https://github.com/jdf-id-au/render)  which uses BGFX and Clojure.
 
 ## Getting started
 

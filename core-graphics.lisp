@@ -1,4 +1,4 @@
-(in-package :cocoagain) ; FIXME 2025-08-13 11:48:36 deserves own ns?
+(in-package :core-graphics)
 
 (defmacro cgfloat (x) `(float ,x 1.0d0))
 
@@ -35,7 +35,7 @@
                   (nconc cffi-args
                          (case next-type
                            (:double `(:double (cgfloat ,arg)))
-                           (:rect `((:struct rect) ,arg))
+                           (:rect `((:struct ns:rect) ,arg))
                            (otherwise `(,next-type ,arg)))))
             (setf next-type :double))))
     (values defun-args cffi-args))))
@@ -226,9 +226,9 @@
   (cffi:foreign-funcall "CGColorSpaceRelease" :pointer color-space))
 
 (defun color-space-copy-name (color-space)
-  (let* ((name (cffi:foreign-funcall "CGColorSpaceCopyName" :pointer colour-space
+  (let* ((name (cffi:foreign-funcall "CGColorSpaceCopyName" :pointer color-space
                                                             :pointer)))
-    (unless (cffi:null-pointer-p name) (cf-string-to-lisp name))))
+    (unless (cffi:null-pointer-p name) (ns:cf-string-to-lisp name))))
 
 (defun make-color-generic-rgb (r g b a)
   (cffi:foreign-funcall "CGColorCreateGenericRGB"
@@ -275,7 +275,7 @@ In case of hardware mirroring, the drawable display becomes the main display. In
   "Provides a list of online displays with bounds that include the specified point."
   (cffi:with-foreign-objects ((ids :uint32 10)
 			      (count :uint32))
-    (cffi:foreign-funcall "CGGetDisplaysWithPoint" (:struct point) point
+    (cffi:foreign-funcall "CGGetDisplaysWithPoint" (:struct ns:point) point
 			  :int32 +max-displays+
 			  :pointer ids
 			  :pointer count)
@@ -286,7 +286,7 @@ In case of hardware mirroring, the drawable display becomes the main display. In
   "Gets a list of online displays with bounds that intersect the specified rectangle."
   (cffi:with-foreign-objects ((ids :uint32 10)
 			      (count :uint32))
-    (cffi:foreign-funcall "CGGetDisplaysWithRect" (:struct rect) rect
+    (cffi:foreign-funcall "CGGetDisplaysWithRect" (:struct ns:rect) rect
 			  :int32 +max-displays+
 			  :pointer ids
 			  :pointer count)
@@ -302,7 +302,7 @@ In case of hardware mirroring, the drawable display becomes the main display. In
 (cffi:defcfun ("CGDisplayCreateImageForRect" display-create-image-for-rect) :pointer
   "An image containing the contents of the specified rectangle. If the display ID is invalid, the return value is NULL. The caller is responsible for releasing the image created by calling CGImageRelease."
   (display :uint32)
-  (rect (:struct rect)))
+  (rect (:struct ns:rect)))
 
 ;; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Getting configuration
 
@@ -362,7 +362,7 @@ In case of hardware mirroring, the drawable display becomes the main display. In
   "The rotation angle of the display in degrees, or 0 if the display is not valid."
   (display :uint32))
 
-(cffi:defcfun ("CGDisplayScreenSize" display-screen-size) (:struct size)
+(cffi:defcfun ("CGDisplayScreenSize" display-screen-size) (:struct ns:size)
   "The size of the specified display in millimeters, or 0 if the display is not valid."
   (display :uint32))
 
@@ -382,7 +382,7 @@ In case of hardware mirroring, the drawable display becomes the main display. In
   "The identifier of the display to be accessed."
   (display :uint32))
 
-(cffi:defcfun ("CGDisplayBounds" display-bounds) (:struct rect)
+(cffi:defcfun ("CGDisplayBounds" display-bounds) (:struct ns:rect)
   "The bounds of the display, expressed as a rectangle in the global display coordinate space (relative to the upper-left corner of the main display)."
   (display :uint32))
 
@@ -464,7 +464,7 @@ When you change the display mode of a display in a mirroring set, your change sw
 (cffi:defcfun ("CGDisplayMoveCursorToPoint" display-move-cursor-to-point) :int32
   "Moves the mouse cursor to a specified point relative to the upper-left corner of the display."
   (display :uint32)
-  (point (:struct point)))
+  (point (:struct ns:point)))
 
 (cffi:defcfun ("CGAssociateMouseAndMouseCursorPosition" associate-mouse-and-mouse-cursor-position) :int32
   "Connects or disconnects the mouse and cursor while an application is in the foreground. Call this function to disconnect the mouse from the cursor. When you call this function, the events your application receives from the system have a constant absolute location but contain delta updates to the X and Y coordinates of the mouse. You can hide the cursor or change it into something appropriate for your application. You can reposition the cursor by using the function CGDisplayMoveCursorToPoint or the function CGWarpMouseCursorPosition."
@@ -472,7 +472,7 @@ When you change the display mode of a display in a mirroring set, your change sw
 
 (cffi:defcfun ("CGWarpMouseCursorPosition" wrap-mouse-cursor-position) :int32
   "Moves the mouse cursor without generating events. You can use this function to “warp” or alter the cursor position without generating or posting an event. For example, this function is often used to move the cursor position back to the center of the screen by games that do not want the cursor pinned by display edges."
-  (new-cursor-position (:struct point)))
+  (new-cursor-position (:struct ns:point)))
 
 (defun last-mouse-delta ()
   "Reports the change in mouse position since the last mouse movement event received by the application. This function is not recommended for general use. Instead, you should use the mouse-tracking functions provided by the NSEvent class."
@@ -487,12 +487,12 @@ When you change the display mode of a display in a mirroring set, your change sw
   (let* ((path (uiop:truenamize path)))
     (unless (probe-file path)
       (assert path nil "can't find file: ~s" path))
-    (with-event-loop (:waitp t)
-      (let* ((ns-image (objc (objc "NSImage" "alloc" :pointer)
+    (ns:with-event-loop (:waitp t)
+      (let* ((ns-image (ns:objc (ns:objc "NSImage" "alloc" :pointer)
 				"initWithContentsOfFile:"
-				:pointer (autorelease (make-ns-string (namestring path)))
+				:pointer (ns:autorelease (ns:make-ns-string (namestring path)))
 				:pointer)))
-	(objc ns-image "CGImageForProposedRect:context:hints:"
+	(ns:objc ns-image "CGImageForProposedRect:context:hints:"
 		 :pointer (cffi:null-pointer)
 		 :pointer (cffi:null-pointer)
 		 :pointer (cffi:null-pointer)
@@ -501,7 +501,7 @@ When you change the display mode of a display in a mirroring set, your change sw
 
 (defun make-image-from-screen (rect)
   (cffi:foreign-funcall "CGWindowListCreateImage"
-                        (:struct rect) rect
+                        (:struct ns:rect) rect
 			:int 12 	; kCGWindowListOptionIncludingWindow | kCGWindowListOptionOnScreenBelowWindow
 			:int 0		; kCGNullWindowID
 			:int 16		; kCGWindowImageNominalResolution
@@ -531,18 +531,18 @@ When you change the display mode of a display in a mirroring set, your change sw
 
 (defun image-data (cg-image)
   "this function should be call in EventLoop"
-  (let* ((ns-bitmap (autorelease (objc (objc "NSBitmapImageRep" "alloc" :pointer)
+  (let* ((ns-bitmap (ns:autorelease (ns:objc (ns:objc "NSBitmapImageRep" "alloc" :pointer)
 					     "initWithCGImage:"
 					     :pointer cg-image
 					     :pointer))))
-    (objc ns-bitmap "bitmapData" :pointer)))
+    (ns:objc ns-bitmap "bitmapData" :pointer)))
 
 (defun write-to-png-file (image path)
-  (with-event-loop nil
+  (ns:with-event-loop nil
     (let* ((image-destination
 	     (cffi:foreign-funcall "CGImageDestinationCreateWithURL"
 				   :pointer 
-				   (objc "NSURL" "fileURLWithPath:" :pointer (autorelease (make-ns-string (uiop:native-namestring path))) :pointer)
+				   (ns:objc "NSURL" "fileURLWithPath:" :pointer (ns:autorelease (ns:make-ns-string (uiop:native-namestring path))) :pointer)
 				   :pointer (cffi:mem-ref (cffi:foreign-symbol-pointer "kUTTypePNG") :pointer)
 				   :sizet 1
 				   :pointer (cffi:null-pointer)
@@ -552,10 +552,10 @@ When you change the display mode of a display in a mirroring set, your change sw
 									   :pointer image
 									   :pointer (cffi:null-pointer))
 			(cffi:foreign-funcall "CGImageDestinationFinalize" :pointer image-destination)))
-      (cf-release image-destination))))
+      (ns:cf-release image-destination))))
 
 (defun make-bitmap-context (width height &key (data (cffi:null-pointer)) (color-space :color-space-srgb) (alpha-info :last) (bitmap-info :order-default))
-  (with-event-loop (:waitp t)
+  (ns:with-event-loop (:waitp t)
     (let* ((color-space (make-color-space color-space)))
       (prog1
 	  (cffi:foreign-funcall "CGBitmapContextCreate"
@@ -591,7 +591,7 @@ When you change the display mode of a display in a mirroring set, your change sw
 (defun make-layer (context width height)
   (cffi:foreign-funcall "CGLayerCreateWithContext"
 			:pointer context
-			(:struct size) (size width height)
+			(:struct ns:size) (ns:size width height)
 			:pointer (cffi:null-pointer)
 			:pointer))
 
@@ -603,16 +603,16 @@ When you change the display mode of a display in a mirroring set, your change sw
 
 (cffi:defcfun (draw-layer-in-rect "CGContextDrawLayerInRect") :void
   (context :pointer)
-  (rect (:struct rect))
+  (rect (:struct ns:rect))
   (layer :pointer))
 
 (cffi:defcfun (draw-layer-at-point "CGContextDrawLayerAtPoint") :void
   (context :pointer)
-  (point (:struct point))
+  (point (:struct ns:point))
   (layer :pointer))
 
 
-(cffi:defcfun (layer-size "CGLayerGetSize") (:struct size)
+(cffi:defcfun (layer-size "CGLayerGetSize") (:struct ns:size)
   (cg-layer :pointer))
 
 (cffi:defcfun (layer-context "CGLayerGetContext") :pointer

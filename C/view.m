@@ -74,3 +74,27 @@
   mEventFn(self.id, SCROLLWHEEL, e, point.x, point.y);  
 }
 @end
+
+@implementation MetalView
+-(id) initWithFrame: (CGRect) iFrame
+             device: (id<MTLDevice>) iDevice
+                 id: (int) iID
+             drawFn: (DrawFn) iDrawFn
+            eventFn: (EventFn) iEventFn {
+  self = [super initWithFrame: iFrame device: iDevice];
+  _id = iID;
+  mDrawFn = iDrawFn;
+  mEventFn = iEventFn;
+  return self
+}
+-(void) mtkView: (MTKView *)view drawableSizeWillChange: (CGSize)size {
+  mDrawFn(self.id, RESHAPE, NULL, NULL, size.width, size.height);
+}
+-(void) drawInMTKView: (MTKView *)view {
+  mDrawFn(self.id, DRAW, NULL, NULL, view.bounds.size.width, view.bounds.size.height);
+}
+-(void) dealloc {
+  mDrawFn(self.id, SHUTDOWN, NULL, NULL, self.bounds.size.width, self.bounds.size.height);
+  [super dealloc];
+}
+@end

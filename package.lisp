@@ -1,31 +1,29 @@
 (defpackage :cocoagain
   (:documentation "Closely after byulparan/cl-nextstep etc. Reimplemented for learning.")
+  (:nicknames :ns)
   (:use :cl :alexandria)
-  ;; (:export
-  ;;  ;; core-foundation.lisp
-  ;;  #:cls
-  ;;  #:sel
-  ;;  #:objc
-  ;;  #+x86-64 #:objc-stret
-  ;;  #:alloc
-  ;;  #:init
-  ;;  #:new
-  ;;  #:retain
-  ;;  #:release
-  ;;  #:autorelease
-  ;;  #:cf-retain
-  ;;  #:cf-release
-  ;;  #:cf-autorelease
-  ;;  #:retain-count
-  ;;  #:make-ns-string
-  ;;  #:ns-string-to-lisp
-  ;;  #:make-cf-string
-  ;;  #:cf-string-to-lisp
-  ;;  ;; application.lisp
-  ;;  #:*startup-hooks*
-  ;;  #:start-event-loop
-  ;;  #:quit
-  ;;  #:queue-for-event-loop
-  ;;  #:with-event-loop
-  ;;  )
-  )
+  (:export
+   #:objc
+   #:autorelease
+   #:cf-release
+   #:with-event-loop
+   #:point
+   #:size
+   #:rect
+   #:make-ns-string
+   #:cf-string-to-lisp))
+
+(defpackage :core-graphics
+  (:nicknames :cg)
+  (:use cl)
+  (:export
+   #:set-rgb-fill-color
+   #:fill-rect
+   #:set-rgb-stroke-color
+   #:move-to-point
+   #:line-to-point
+   #:add-curve-to-point
+   #:stroke-path))
+
+(defpackage :mtl
+  (:use cl))

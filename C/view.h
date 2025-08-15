@@ -1,4 +1,6 @@
 #import <Cocoa/Cocoa.h>
+#import <Metal/Metal.h>
+#import <MetalKit/MetalKit.h>
 
 typedef void(*DrawFn)(int,int,void*,void*,int,int);
 typedef void(*EventFn)(int iID, int type, NSEvent *,
@@ -24,6 +26,13 @@ enum {
   DrawFn mDrawFn;
   EventFn mEventFn;
   NSTrackingArea *trackingArea;
+}
+@property(readonly, nonatomic) int id;
+@end
+
+@interface MetalView<MTKViewDelegate>: MTKView {
+  DrawFn mDrawFn;
+  EventFn mEventFn;
 }
 @property(readonly, nonatomic) int id;
 @end

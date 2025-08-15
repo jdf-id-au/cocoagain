@@ -10,13 +10,14 @@
 (defconstant +NO+ (objc (alloc "NSNumber") "initWithBool:" :unsigned-char 0 :pointer))
 
 (defun redisplay ()
-  (let* ((latest-id (loop for k being each hash-key of *view-table* maximize k))
-         (latest-view (gethash latest-id *view-table*)))
-    #+nil latest-view
-    ;; ugh still memory fault
-    #+nil(objc latest-view "setValue:forKey:" :pointer +YES+ :string "needsDisplay")
-    ;; lol this works
-    (objc latest-view "display")))
+  (when (not (zerop (hash-table-count *view-table*)))
+    (let* ((latest-id (loop for k being each hash-key of *view-table* maximize k))
+           (latest-view (gethash latest-id *view-table*)))
+      #+nil latest-view
+      ;; ugh still memory fault
+      #+nil(objc latest-view "setValue:forKey:" :pointer +YES+ :string "needsDisplay")
+      ;; lol this works
+      (objc latest-view "display"))))
 
 (progn
   (defmethod draw ((self 2d-canvas))
@@ -27,13 +28,13 @@
            (r (rect 0 0 w h))
            )
       ;;(format t "bounds ~a~%" (cg:display-bounds 0))
-      (set-rgb-fill-color ctx (random 1.0) (random 1.0) (random 1.0))
-      (fill-rect ctx r)
-      (set-rgb-stroke-color ctx (random 1.0) 0 0)
-      (move-to-point ctx (random w) (random h))
+      (cg:set-rgb-fill-color ctx (random 1.0) (random 1.0) (random 1.0))
+      (cg:fill-rect ctx r)
+      (cg:set-rgb-stroke-color ctx (random 1.0) 0 0)
+      (cg:move-to-point ctx (random w) (random h))
       #+nil(add-line-to-point ctx (random w) (random h))
-      (add-curve-to-point ctx (random w) (random h) (random w) (random h) (random w) (random h))
-      (stroke-path ctx)))
+      (cg:add-curve-to-point ctx (random w) (random h) (random w) (random h) (random w) (random h))
+      (cg:stroke-path ctx)))
   (redisplay))
 
 (start-event-loop) ; NB reeval application Run! if broken
