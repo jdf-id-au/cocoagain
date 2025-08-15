@@ -17,8 +17,8 @@
         (ecase draw-flag
           (0 (init view))
           (1 (draw view))
-          (2 (reshape view))
-          (3 (release view)))
+          (2 (reshape view)) ; NB 2025-08-15 21:29:38 only defined for mtl?
+          (3 (release view) (remhash id *view-table*)))
       (error (c) (break (format nil "Caught signal while drawing: \"~a\"" c))))))
 
 (cffi:defcallback view-event-callback :void
