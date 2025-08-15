@@ -87,7 +87,7 @@
   (objc view "setNeedsDisplayInRect:" (:struct rect)
         (rect 0 0 (width view) (height view))))
 
-(defclass view (base-view) ())
+(defclass view (base-view) ()) ; ────────────────────────────────────────── View
 
 (defmethod initialize-instance :after
     ((self view)
@@ -105,3 +105,32 @@
                                 :pointer)))
     (if (cffi:null-pointer-p graphic-context) graphic-context ; ?
         (objc graphic-context "CGContext" :pointer))))
+
+(defclass mtk-view (base-view) ((%device :accessor %device))) ; ─── MetalTK view
+
+(defmethod reshape ((self mtk-view)) ())
+
+(defmethod initialize-instance :after ((self mtk-view) &key (x 0) (y 0) (w 400) (h 200))
+  (let* ((device (cffi:foreign-funcall "MTLCreateSystemDefaultDevice" :pointer))
+         (view (objc (alloc "MetalView") "initWithFrame:device:id:drawF:eventFn:"
+                     (:struct rect) (rect x y w h)
+                     :pointer device
+                     :int (id self)
+                     :pointer (cffi:callback view-draw-callback)
+                     :pointer (cffi:callback view-event-callback)
+                     :pointer)))
+    (setf (%device self) device)
+    (objc view "setDelegate:" :pointer view)
+    (setf (cocoa-ref self) view)
+    (init self)))
+
+(defun device (mtk-view) (%device mtk-view))
+
+(defun color-pixel-format (mtk-view) (objc mtk-view "colorPixelFormat" :int))
+(defun depth-stencil-pixel-format (mtk-view) (objc mtk-view "depthStencilPixelFormat" :int))
+(defun (setf depth-stencil-pixel-format) (pixel-format mtk-view)
+  (objc mtk-view "setDepthStencilPixelFormat:" :int pixel-format))
+(defun drawable-size (mtk-view) (objc mtk-view "drawableSize" (:struct size)))
+(defun (setf drawable-size) (size mtk-view) (objc mtk-view "setDrawableSize:" (:struct size) size))
+(defun current-drawable (mtk-view) (objc mtk-view "currentDrawable" :pointer))
+(defun current-render-pass-descriptor (mtk-view) (objc mtk-view "currentRenderPassDescriptor" :pointer))

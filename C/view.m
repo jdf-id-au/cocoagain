@@ -85,7 +85,7 @@
   _id = iID;
   mDrawFn = iDrawFn;
   mEventFn = iEventFn;
-  return self
+  return self;
 }
 -(void) mtkView: (MTKView *)view drawableSizeWillChange: (CGSize)size {
   mDrawFn(self.id, RESHAPE, NULL, NULL, size.width, size.height);

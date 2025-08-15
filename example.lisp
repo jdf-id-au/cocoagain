@@ -16,8 +16,9 @@
       #+nil latest-view
       ;; ugh still memory fault
       #+nil(objc latest-view "setValue:forKey:" :pointer +YES+ :string "needsDisplay")
-      ;; lol this works
-      (objc latest-view "display"))))
+      (redisplay latest-view)
+      ;; "simpler":
+      #+nil(objc latest-view "display"))))
 
 (progn
   (defmethod draw ((self 2d-canvas))

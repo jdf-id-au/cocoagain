@@ -2,7 +2,7 @@
   (:documentation "Closely after byulparan/cl-nextstep etc. Reimplemented for learning.")
   (:nicknames :ns)
   (:use :cl :alexandria)
-  (:export
+  (:export ; ugh tedious to maintain
    #:objc
    #:autorelease
    #:cf-release
