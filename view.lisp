@@ -128,7 +128,7 @@
 
 (defun color-pixel-format (mtk-view) (objc mtk-view "colorPixelFormat" :int))
 (defun depth-stencil-pixel-format (mtk-view) (objc mtk-view "depthStencilPixelFormat" :int))
-(defun (setf depth-stencil-pixel-format) (pixel-format mtk-view)
+(defun set-depth-stencil-pixel-format (mtk-view pixel-format) ; setf??
   (objc mtk-view "setDepthStencilPixelFormat:" :int pixel-format))
 (defun drawable-size (mtk-view) (objc mtk-view "drawableSize" (:struct size)))
 (defun (setf drawable-size) (size mtk-view) (objc mtk-view "setDrawableSize:" (:struct size) size))

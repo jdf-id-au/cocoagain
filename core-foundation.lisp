@@ -74,7 +74,7 @@
 (defun cf-autorelease (cf-instance)
   (cffi:foreign-funcall "CFAutorelease" :pointer cf-instance))
 
-(defun retain-count (instance) (obj instance "retainCount" :unsigned-int))
+(defun retain-count (instance) (objc instance "retainCount" :unsigned-int))
 
 ;; ───────────────────────────────────────────────────────────────────── Strings
 
@@ -126,11 +126,11 @@
 
 (defstruct (size (:constructor size (width height))) width height)
 
-(defmethod cffi:translate-from-foreign (s (type %size))
-  (cffi:with-foreign-slots ((width height) s (:struct size)) (size width height)))
+(defmethod cffi:translate-from-foreign (p (type %size))
+  (cffi:with-foreign-slots ((width height) p (:struct size)) (size width height)))
 
-(defmethod cffi:translate-into-foreign-memory (size (type %size) s)
-  (cffi:with-foreign-slots ((width height) s (:struct size))
+(defmethod cffi:translate-into-foreign-memory (size (type %size) p)
+  (cffi:with-foreign-slots ((width height) p (:struct size))
     (setf width (coerce (size-width size) 'double-float)
           height (coerce (size-height size) 'double-float))))
 
@@ -138,16 +138,16 @@
 
 (defstruct (rect (:constructor rect (x y width height))) x y width height)
 
-(defmethod cffi:translate-from-foreign (r (type %rect))
-  (cffi:with-foreign-slots ((origin size) r (:struct rect))
+(defmethod cffi:translate-from-foreign (p (type %rect))
+  (cffi:with-foreign-slots ((origin size) p (:struct rect))
     (rect (point-x origin)
           (point-y origin)
           (size-width size)
           (size-height size))))
 
-(defmethod cffi:translate-into-foreign-memory (rect (type %rect) r)
-  (let* ((origin (cffi:foreign-slot-pointer r '(:struct rect) 'origin))
-         (size (cffi:foreign-slot-pointer r '(:struct rect) 'size)))
+(defmethod cffi:translate-into-foreign-memory (rect (type %rect) p)
+  (let* ((origin (cffi:foreign-slot-pointer p '(:struct rect) 'origin))
+         (size (cffi:foreign-slot-pointer p '(:struct rect) 'size)))
     (cffi:with-foreign-slots ((x y) origin (:struct point))
       (cffi:with-foreign-slots ((width height) size (:struct size))
         (setf x (coerce (rect-x rect) 'double-float)

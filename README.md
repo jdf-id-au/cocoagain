@@ -1,6 +1,6 @@
 # jdf/cocoagain
 
-**Core Graphics** + **Common Lisp** REPL
+**Core Graphics** — **Common Lisp** REPL
 
 Read eval graphics loop, take two! In the grand tradition of (but much less sophisticated than):
 
@@ -10,7 +10,7 @@ Read eval graphics loop, take two! In the grand tradition of (but much less soph
 - https://www.shadertoy.com/
 - https://github.com/oakes/play-cljc
   
-Also see the very half-baked [`jdf/render`](https://github.com/jdf-id-au/render)  which uses BGFX and Clojure, and [`repl-frame` from jdf/comfort](https://github.com/jdf-id-au/comfort/blob/master/src/comfort/ui.clj) which uses Swing and Clojure.
+Also see the very half-baked [`jdf/render`](https://github.com/jdf-id-au/render)  which uses BGFX and Clojure, and [`repl-frame`](https://github.com/jdf-id-au/comfort/blob/master/src/comfort/ui.clj) from `jdf/comfort` which uses Swing and Clojure.
 
 Other notable projects:
 
