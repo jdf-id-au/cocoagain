@@ -4,12 +4,10 @@
 
 (in-package :cocoagain)
 
-(defclass 2d-canvas (view) ()) ; vs straight cocoagain:view?
-
 (defconstant +YES+ (objc (alloc "NSNumber") "initWithBool:" :unsigned-char 1 :pointer))
 (defconstant +NO+ (objc (alloc "NSNumber") "initWithBool:" :unsigned-char 0 :pointer))
 
-(defun redisplay ()
+(defun redisplay-last ()
   (when (not (zerop (hash-table-count *view-table*)))
     (let* ((latest-id (loop for k being each hash-key of *view-table* maximize k))
            (latest-view (gethash latest-id *view-table*)))
@@ -20,8 +18,8 @@
       ;; "simpler":
       #+nil(objc latest-view "display"))))
 
-(progn
-  (defmethod draw ((self 2d-canvas))
+(progn ; ───────────────────────────────────────────────────────── Core Graphics
+  (defmethod draw ((self view))
     (let* ((ctx (current-cg-context))
            ;;(r (rect (random 100) 10 20 30))
            (w (width self))
@@ -37,15 +35,38 @@
       #+nil(add-line-to-point ctx (random w) (random h))
       (cg:add-curve-to-point ctx (random w) (random h) (random w) (random h) (random w) (random h))
       (cg:stroke-path ctx)))
-  (redisplay))
+  (redisplay-last))
 
 (start-event-loop) ; NB reeval application Run! if broken
 
 (with-event-loop (:waitp t)
   (let* ((win (make-instance 'window
                                 :rect (in-screen-rect (rect 0 1000 720 450))
-                                :title "cocoagain demo"))
-         (view (make-instance '2d-canvas)))
+                                :title "Core Graphics demo"))
+         (view (make-instance 'view)))
+    (setf (content-view win) view)
+    (window-show win))) 
+
+(progn ; ──────────────────────────────────────────────────────── Metal Tool Kit
+  (defmethod draw ((self mtk-view))
+    )
+  (redisplay-last))
+
+(with-event-loop (:waitp t)
+  (let* ((win (make-instance 'window
+                             :rect (in-screen-rect (rect 0 1000 720 450))
+                             :title "Metal Tool Kit demo"))
+         (view (make-instance 'mtk-view))
+         (shader-source (uiop:read-file-string "example/example.metal"))
+         (library (mtl::make-library (device view) shader-source))
+         (vertex-fn (mtl::make-function library "vertex_main"))
+         (fragment-fn (mtl::make-function library "fragment_main"))
+         (pd (mtl::make-render-pipeline-descriptor))
+         (ps (mtl::make-render-pipeline-state (device view) pd)))
+    (mtl::set-color-attachment-pixel-format pd 0 mtl::+pixel-format-r8-uint+)
+    ;; `Render Pipeline Descriptor Validation vertexFunction must not be nil
+    (mtl::set-vertex-function pd vertex-fn)
+    (mtl::set-fragment-function pd fragment-fn)
     (setf (content-view win) view)
     (window-show win)))
 
@@ -54,4 +75,4 @@
              (format t "~S ~S~%" k v)) *view-table*)
 
 #+nil(defmethod mouse-moved ((self base-view) event location-x location-y)
-  (format t "~a ~a ~%" location-x location-y))
+       (format t "~a ~a ~%" location-x location-y))

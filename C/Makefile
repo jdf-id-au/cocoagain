@@ -8,7 +8,7 @@ FRAMEWORKS=-framework Cocoa -framework QuartzCore \
 -framework Metal -framework MetalKit
 
 ../libcocoagain.dylib: \
-application.m window.m view.m
+application.m window.m view.m timer.m
 	cc -dynamiclib $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) $^ -o $@
 
 ../check: check.m ../libcocoagain.dylib

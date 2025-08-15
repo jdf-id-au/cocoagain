@@ -30,6 +30,7 @@ enum {
 @property(readonly, nonatomic) int id;
 @end
 
+// https://developer.apple.com/documentation/MetalKit/MTKView?language=objc
 @interface MetalView<MTKViewDelegate>: MTKView {
   DrawFn mDrawFn;
   EventFn mEventFn;

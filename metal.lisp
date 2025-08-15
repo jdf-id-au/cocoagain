@@ -145,17 +145,21 @@
 ;; ──────────────────────────────────────────────────────────────────── Pipeline
 
 (defun make-library (device source &key (options (cffi:null-pointer)))
-  (ns:objc device "newLibraryWithSource:options:error:"
-	    :pointer (ns:autorelease (ns:make-ns-string source))
-	    :pointer options
-	    :pointer (cffi:null-pointer)
-	    :pointer))
+  (let ((p
+          (ns:objc device "newLibraryWithSource:options:error:"
+                   :pointer (ns:autorelease (ns:make-ns-string source))
+                   :pointer options
+                   :pointer (cffi:null-pointer) ; FIXME 2025-08-16 00:12:19
+                   :pointer)))
+    (if (cffi:null-pointer-p p)
+        (error "Shader compilation failed:~% ~a" source)
+        p)))
 
 (defun make-function (library name)
   (ns:objc library "newFunctionWithName:" :pointer (ns:autorelease (ns:make-ns-string name)) :pointer))
 
 (defun make-render-pipeline-descriptor ()
-  (ns::new "MTLRenderPipelineDescriptor"))
+  (ns:new "MTLRenderPipelineDescriptor"))
 
 (defun set-vertex-function (render-pipeline-descriptor function)
   (ns:objc render-pipeline-descriptor "setVertexFunction:" :pointer function))
@@ -193,10 +197,14 @@
     (ns:objc layout "setStepFunction:" :int step-function)))
 
 (defun make-render-pipeline-state (device render-pipeline-descriptor)
-  (ns:objc device "newRenderPipelineStateWithDescriptor:error:"
-	   :pointer render-pipeline-descriptor
-	   :pointer (cffi:null-pointer)
-	   :pointer))
+  (let ((p
+          (ns:objc device "newRenderPipelineStateWithDescriptor:error:"
+                   :pointer render-pipeline-descriptor
+                   :pointer (cffi:null-pointer) ; FIXME 2025-08-15 23:42:52 is set to NSError** -- test/retrieve?
+                   :pointer)))
+    (if (cffi:null-pointer-p p)
+        (error "Failed to create render pipeline state.")
+        p)))
 
 (defun make-depth-stencil-descriptor ()
   (ns:new "MTLDepthStencilDescriptor"))

@@ -4,6 +4,7 @@
   (:use :cl :alexandria)
   (:export ; ugh tedious to maintain
    #:objc
+   #:new
    #:autorelease
    #:cf-release
    #:with-event-loop
@@ -27,4 +28,6 @@
    #:stroke-path))
 
 (defpackage :mtl
-  (:use cl))
+  (:use cl)
+  (:export
+   #:make-render-pipeline-descriptor))

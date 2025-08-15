@@ -112,7 +112,7 @@
 
 (defmethod initialize-instance :after ((self mtk-view) &key (x 0) (y 0) (w 400) (h 200))
   (let* ((device (cffi:foreign-funcall "MTLCreateSystemDefaultDevice" :pointer))
-         (view (objc (alloc "MetalView") "initWithFrame:device:id:drawF:eventFn:"
+         (view (objc (alloc "MetalView") "initWithFrame:device:id:drawFn:eventFn:"
                      (:struct rect) (rect x y w h)
                      :pointer device
                      :int (id self)
