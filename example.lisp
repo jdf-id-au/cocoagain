@@ -26,7 +26,6 @@
            (h (height self))
            (r (rect 0 0 w h))
            )
-      ;;(format t "tried to draw! ~a ~a ~%" self ctx)
       ;;(format t "bounds ~a~%" (cg:display-bounds 0))
       (set-rgb-fill-color ctx (random 1.0) (random 1.0) (random 1.0))
       (fill-rect ctx r)
@@ -45,9 +44,11 @@
                                 :title "cocoagain demo"))
          (view (make-instance '2d-canvas)))
     (setf (content-view win) view)
-    (window-show win)))p
+    (window-show win)))
 
 ;; #+nil is Common Lisp semi-equivalent of Clojure #_
 #+nil (maphash #'(lambda (k v)
              (format t "~S ~S~%" k v)) *view-table*)
 
+#+nil(defmethod mouse-moved ((self base-view) event location-x location-y)
+  (format t "~a ~a ~%" location-x location-y))
