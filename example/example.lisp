@@ -115,4 +115,3 @@
 
 #+nil(defmethod mouse-moved ((self base-view) event location-x location-y)
        (format t "~a ~a ~%" location-x location-y))
-

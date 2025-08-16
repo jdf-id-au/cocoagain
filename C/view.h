@@ -34,7 +34,9 @@ enum {
 @interface MetalView<MTKViewDelegate>: MTKView {
   DrawFn mDrawFn;
   EventFn mEventFn;
+  NSTrackingArea *trackingArea;
 }
+// Workaround for lisp difficulty, see implementation.
 -(id<MTLRenderPipelineState>) renderPipelineStateWithDescriptor: (MTLRenderPipelineDescriptor *) d;
 @property(readonly, nonatomic) int id;
 @end

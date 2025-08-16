@@ -85,6 +85,13 @@
   _id = iID;
   mDrawFn = iDrawFn;
   mEventFn = iEventFn;
+  int opts = (NSTrackingActiveAlways | NSTrackingMouseEnteredAndExited |
+              NSTrackingMouseMoved | NSTrackingInVisibleRect);
+  trackingArea = [[NSTrackingArea alloc] initWithRect: [self bounds]
+                                              options: opts
+                                                owner: self
+                                             userInfo: nil];
+  [self addTrackingArea: trackingArea];
   return self;
 }
 -(void) mtkView: (MTKView *)view drawableSizeWillChange: (CGSize)size {
@@ -106,6 +113,53 @@
 }
 -(void) dealloc {
   mDrawFn(self.id, SHUTDOWN, NULL, NULL, self.bounds.size.width, self.bounds.size.height);
+  if(trackingArea != nil) {
+    [self removeTrackingArea: trackingArea];
+    [trackingArea release];
+  }
   [super dealloc];
+}
+// ────────────────────────────── NB bad copy-paste from View - should mixin...?
+-(void) updateTrackingAreas {
+  if(trackingArea != nil) {
+    [self removeTrackingArea: trackingArea];
+    [trackingArea release];
+  }
+  int opts = (NSTrackingActiveAlways | NSTrackingMouseEnteredAndExited |
+              NSTrackingMouseMoved | NSTrackingInVisibleRect);
+  trackingArea = [[NSTrackingArea alloc] initWithRect: [self bounds]
+                                              options: opts
+                                                owner: self
+                                             userInfo: nil];
+  [self addTrackingArea: trackingArea];
+}
+-(BOOL) acceptsFirstResponder { return YES; }
+-(void) keyDown:(NSEvent *) e {
+  mEventFn(self.id, KEY_DOWN, e, 0, 0);
+}
+-(void) mouseDown:(NSEvent *) e {
+  NSPoint point = [self convertPoint: [e locationInWindow]
+                            fromView: nil];
+  mEventFn(self.id, DOWN, e, point.x, point.y);
+}
+-(void) mouseDragged:(NSEvent *) e {
+  NSPoint point = [self convertPoint: [e locationInWindow]
+                            fromView: nil];
+  mEventFn(self.id, DRAGGED, e, point.x, point.y);
+}
+-(void) mouseUp:(NSEvent *) e {
+  NSPoint point = [self convertPoint: [e locationInWindow]
+                            fromView: nil];
+  mEventFn(self.id, UP, e, point.x, point.y);
+}
+-(void) mouseMoved:(NSEvent *) e {
+  NSPoint point = [self convertPoint: [e locationInWindow]
+                            fromView: nil];
+  mEventFn(self.id, MOVED, e, point.x, point.y);
+}
+-(void) scrollWheel:(NSEvent *) e {
+  NSPoint point = [self convertPoint: [e locationInWindow]
+                            fromView: nil];
+  mEventFn(self.id, SCROLLWHEEL, e, point.x, point.y);  
 }
 @end

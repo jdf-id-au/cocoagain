@@ -133,11 +133,11 @@
     (setf (cocoa-ref self) view)
     (init self)))
 
+
+;; TODO 2025-08-16 19:10:37 do these belong in metal.lisp?
 (defun color-pixel-format (mtk-view) (objc mtk-view "colorPixelFormat" :int))
 (defun depth-stencil-pixel-format (mtk-view) (objc mtk-view "depthStencilPixelFormat" :int))
 (defun set-depth-stencil-pixel-format (mtk-view pixel-format) ; setf??
   (objc mtk-view "setDepthStencilPixelFormat:" :int pixel-format))
 (defun drawable-size (mtk-view) (objc mtk-view "drawableSize" (:struct size)))
 (defun (setf drawable-size) (size mtk-view) (objc mtk-view "setDrawableSize:" (:struct size) size))
-(defun current-drawable (mtk-view) (objc mtk-view "currentDrawable" :pointer))
-(defun current-render-pass-descriptor (mtk-view) (objc mtk-view "currentRenderPassDescriptor" :pointer))
