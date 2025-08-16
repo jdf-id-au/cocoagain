@@ -119,7 +119,7 @@
   }
   [super dealloc];
 }
-// ────────────────────────────── NB bad copy-paste from View - should mixin...?
+// ────────────────────────────── NB bad copy-paste from View - objc category??
 -(void) updateTrackingAreas {
   if(trackingArea != nil) {
     [self removeTrackingArea: trackingArea];

@@ -242,12 +242,17 @@
     ;; used for every vertex. In this case,stepRate must be set to 0.
     (ns:objc layout "setStepFunction:" :int step-function)))
 
-(defun make-render-pipeline-state (device render-pipeline-descriptor)
+#+nil(defun make-render-pipeline-state (device render-pipeline-descriptor)
   (cffi:with-foreign-object (err :pointer)
+    (let ((e (ns:objc "NSError" "errorWithDomain:code:userInfo:"
+                      :string "placeholder"
+                      :int 0
+                      :pointer (cffi:null-pointer)))) ; TODO 2025-08-16 19:50:42 how?
+      (setf (cffi:mem-ref err :pointer) e))
     (let ((p
             (ns:objc device "newRenderPipelineStateWithDescriptor:error:"
                      :pointer render-pipeline-descriptor
-                     :pointer err ; pointer to NSError
+                     :pointer err
                      :pointer)))
       (if (cffi:null-pointer-p p)
           (error "Failed to create render pipeline state.~%~a ~a ~a ~a ~a"

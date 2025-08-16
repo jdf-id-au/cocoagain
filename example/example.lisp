@@ -109,7 +109,6 @@
     (setf (content-view win) view)
     (window-show win)))
 
-;; #+nil is Common Lisp semi-equivalent of Clojure #_
 #+nil (maphash #'(lambda (k v)
              (format t "~S ~S~%" k v)) *view-table*)
 

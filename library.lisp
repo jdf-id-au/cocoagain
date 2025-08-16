@@ -10,6 +10,4 @@
 
 (format t "Loaded~%")
 
-;; NB 2025-08-13 14:14:53 does seem to succeed (although wouldn't print success message)
-;; ...doesn't always subsequently allow repl eval
-;; blocking main thread?? shouldn't yet
+;; TODO 2025-08-16 19:35:12 test/fix library reload
