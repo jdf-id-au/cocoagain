@@ -84,7 +84,7 @@
 (defun opt-p (event)
   (not (zerop (logand (objc event "modifierFlags" :unsigned-int)
                       (ash 1 19)))))
-(defun redisplay (view)
+(defun redisplay (view) ; FIXME 2025-08-16 22:31:21 hangs
   (objc view "setNeedsDisplayInRect:" (:struct rect)
         (rect 0 0 (width view) (height view))))
 
@@ -109,13 +109,9 @@
 
 ; ────────────────────────────────────────────────────────── Metal Tool Kit view
 
-(defclass mtk-context () ; TODO 2025-08-16 03:22:06 learn how this changes in complex scenes
-  ((pipeline-state :accessor pipeline-state)
-   (command-queue :accessor command-queue)))
-
 (defclass mtk-view (base-view)
   ((device :accessor device)
-   (context :accessor context :initform (make-instance 'mtk-context))))
+   (context :accessor context)))
 
 (defmethod reshape ((self mtk-view)) ())
 
@@ -132,7 +128,6 @@
     (objc view "setDelegate:" :pointer view)
     (setf (cocoa-ref self) view)
     (init self)))
-
 
 ;; TODO 2025-08-16 19:10:37 do these belong in metal.lisp?
 (defun color-pixel-format (mtk-view) (objc mtk-view "colorPixelFormat" :int))

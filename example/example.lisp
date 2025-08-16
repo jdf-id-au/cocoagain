@@ -1,27 +1,20 @@
 ;; C-c C-l sly-load-file cocoagain.asd
-;; (ql:quickload '(:alexandria :cffi :cffi-libffi :float-features :bordeaux-threads :trivial-main-thread))
 (ql:quickload :cocoagain)
 
 (in-package :cocoagain)
 
-(defconstant +YES+ (objc (alloc "NSNumber") "initWithBool:" :unsigned-char 1 :pointer))
-(defconstant +NO+ (objc (alloc "NSNumber") "initWithBool:" :unsigned-char 0 :pointer))
-
 ;; (gethash 0 *view-table*)
-;; (redisplay (gethash 0 *view-table*))
+;; (redisplay (gethash 0 *view-table*)) ; TODO get `redisplay` working? SIGBUS?
 
-(defun redisplay-last ()
-  (when (not (zerop (hash-table-count *view-table*)))
-    (let* ((latest-id (loop for k being each hash-key of *view-table* maximize k))
-           (latest-view (gethash latest-id *view-table*)))
-      ;; ugh still memory fault
-      #+nil(objc latest-view "setValue:forKey:" :pointer +YES+ :string "needsDisplay")
-      ;; FIXME 2025-08-16 10:10:06 sig10 ie SIBGUS ie bad access?
-      #+nil(redisplay latest-view)
-      ;; "simpler":
-      (objc latest-view "display"))))
+(defun display-all ()
+  (loop for v being each hash-value in *view-table*
+        do (objc v "display")))
 
-(progn ; ───────────────────────────────────────────────────────── Core Graphics
+(start-event-loop)
+
+;; ─────────────────────────────────────────────────────────────── Core Graphics
+
+(progn
   (defmethod draw ((self view))
     (let* ((ctx (current-cg-context))
            ;;(r (rect (random 100) 10 20 30))
@@ -35,12 +28,12 @@
       (cg:set-line-width ctx 10.0)
       (cg:set-rgb-stroke-color ctx (random 1.0) 0 0)
       (cg:move-to-point ctx (random w) (random h))
-      (cg:add-line-to-point ctx (random w) (random h))
-      (cg:add-curve-to-point ctx (random w) (random h) (random w) (random h) (random w) (random h))
+      #+nil(cg:add-line-to-point ctx (random w) (random h))
+      (cg:add-curve-to-point ctx (random w) (random h)
+                             (random w) (random h)
+                             (random w) (random h))
       (cg:stroke-path ctx)))
-  (redisplay-last))
-
-(start-event-loop) ; NB reeval application Run! if broken
+  (display-all))
 
 (with-event-loop (:waitp t)
   (let* ((win (make-instance 'window
@@ -48,8 +41,14 @@
                                 :title "Core Graphics demo"))
          (view (make-instance 'view)))
     (setf (content-view win) view)
-    (window-show win))) 
+    (window-show win)))
+
 ;; ────────────────────────────────────────────────────────────── Metal Tool Kit
+
+(defclass mtk-context () ; TODO 2025-08-16 03:22:06 learn how this changes in complex scenesn
+  ((pipeline-state :accessor pipeline-state)
+   (command-queue :accessor command-queue))
+  (:documentation "In-development way of storing all required context such as pipelines, vertex arrays etc. Could promote to `view.lisp` if ever becomes general-purpose."))
 
 (defparameter *vertex-data*
   (make-array '(9) :element-type 'single-float
@@ -79,15 +78,16 @@
           (mtl::end-encoding ce))
         (mtl::present-drawable cb (mtl::drawable self))
         (mtl::commit cb))))
-  (redisplay-last))
+  (display-all))
 
 (with-event-loop (:waitp t)
   (let* ((win (make-instance 'window
                              :rect (in-screen-rect (rect 0 1000 720 450))
                              :title "Metal Tool Kit demo"))
          (view (make-instance 'mtk-view))
-
+         (ctx (setf (context view) (make-instance 'mtk-context)))
          ;; TODO 2025-08-16 20:03:21 separate out so shader (pipeline etc?) can be hot reloaded
+         ;; ... and decide on organisation of resources (pipelines, etc) per view
          (shader-source (uiop:read-file-string "example/example.metal")) ; FIXME 2025-08-16 14:47:17 what sets cwd?
          ;; Uncompilable shader would be described in sly-inferior-lisp log from objc until I get lisp impl working.
          ;; Doesn't kill repl/runtime, just Continue.
@@ -95,8 +95,7 @@
          (vertex-fn (mtl::make-function library "vertex_main"))
          (fragment-fn (mtl::make-function library "fragment_main"))
          (pd (mtl::make-render-pipeline-descriptor))
-         (vd (mtl::make-vertex-descriptor))
-         (ctx (context view)))
+         (vd (mtl::make-vertex-descriptor)))
     (mtl::set-color-attachment-pixel-format pd 0 mtl::+pixel-format-a8-unorm+)
     (mtl::set-vertex-function pd vertex-fn)
     (mtl::set-fragment-function pd fragment-fn)
@@ -112,11 +111,11 @@
              (format t "~S ~S~%" k v)) *view-table*)
 
 (defun scale-cursor (loc dim)
-  "Scale cursor to [-1,1]"
+  "Scale cursor to [-1,1]" ; could DISASSEMBLE and optimise...
   (coerce (1- (* (/ loc dim) 2)) 'single-float))
 
 #+nil(defmethod mouse-moved ((self base-view) event location-x location-y)
-       (format t "~a ~a ~%" location-x location-y)
+       ;(format t "~a ~a ~%" location-x location-y)
        (setf (aref *vertex-data* 0) (scale-cursor location-x (width self))
              (aref *vertex-data* 1) (scale-cursor location-y (height self))))
 
