@@ -59,26 +59,29 @@
 
 (defparameter bytes-per-float 4)
 
-(progn 
+(progn
+  ;; Caught signal while drawing: "The value NIL is not of type (SIGNED-BYTE 32) when binding SB-ALIEN::VALUE"
   (defmethod draw ((self mtk-view))
     (cffi:with-foreign-object (fvb :float (array-total-size *vertex-data*))
       ;; TODO 2025-08-16 02:28:20 consider https://www.cliki.net/WAAF-CFFI
-      (loop for i from 0 below (array-total-size *vertex-data*)
-            do (setf (cffi:mem-ref fvb :float i) (aref *vertex-data* i)))
+      (dotimes (i (array-total-size *vertex-data*))
+        (setf (cffi:mem-aref fvb :float i) (aref *vertex-data* i)))
       (let* ((vb (mtl::make-buffer (device self) fvb
                                    (* bytes-per-float (array-total-size *vertex-data*))))
              (cb (mtl::get-command-buffer (command-queue (context self))))
              (rp (mtl::render-pass-descriptor self))
              (ce (mtl::get-render-command-encoder cb rp))
-             
-             #+nil(ps (mtl::make-render-pipeline-state (device self) pd)))
-        (mtl::set-render-pipeline-state ce (pipeline-state (context self)))
-        (mtl::set-vertex-buffer ce vb)
-        (mtl::draw-primitives ce mtl:+primitive-type-triangle+ 0 3)
-        (mtl::end-encoding ce)
+             (ps (pipeline-state (context self))))
+        (format t "pipeline-state ~a" ps)
+        (unwind-protect
+             (progn
+               (mtl::set-render-pipeline-state ce ps)
+               (mtl::set-vertex-buffer ce vb :index 0)
+               (mtl::draw-primitives ce mtl:+primitive-type-triangle+ 0 3))
+          (mtl::end-encoding ce))
         (mtl::present-drawable cb (mtl::drawable self))
-        (mtl::commit cb)))
-    )
+        (mtl::commit cb)
+        (format t "commit ~%"))))
   (redisplay-last))
 
 (with-event-loop (:waitp t)

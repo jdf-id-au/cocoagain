@@ -124,17 +124,17 @@
 (defun set-depth-stencil-state (command-encoder depth-stencil-state)
   (ns:objc command-encoder "setDepthStencilState:" :pointer depth-stencil-state))
 
-(defun set-vertex-buffer (command-encoder buffer &key (offset 0) index)
+(defun set-vertex-buffer (command-encoder buffer &key (offset 0) (index 0))
   (ns:objc command-encoder "setVertexBuffer:offset:atIndex:" :pointer buffer
 							     :int offset
 							     :int index))
 
-(defun set-fragment-buffer (command-encoder buffer &key (offset 0) index)
+(defun set-fragment-buffer (command-encoder buffer &key (offset 0) (index 0))
   (ns:objc command-encoder "setFragmentBuffer:offset:atIndex:" :pointer buffer
 							       :int offset
 							       :int index))
 
-(defun set-fragment-texture (command-encoder texture &key index)
+(defun set-fragment-texture (command-encoder texture &key (index 0))
   (ns:objc command-encoder "setFragmentTexture:atIndex:" :pointer texture :int index))
 
 (defun draw-primitives (command-encoder primitive start count &key (instance-count 1))
