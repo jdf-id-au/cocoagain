@@ -23,9 +23,11 @@ vertex float4 vertex_main(VertexIn vert [[stage_in]]) {
 /* 5.2.4 Vertex function output and the rasterizer-generated fragments
 become the per-fragment inputs to a fragment function. The
 [[stage_in]] attribute can assemble the per-fragment inputs. */
-fragment float4 fragment_main(float4 pixel [[stage_in]]) {
-  // default MTLPixelFormatR8Uint, compatible with half or float
-  // https://stackoverflow.com/a/66637191/780743
-  // return pixel; // Failed to create render pipeline stat in objc Link failed: fragment input pixel was not found in vertex shader outputs.
-  return float4(1.0, 0.0, 0.0, 0.5);
+fragment float4 fragment_main(float4 pixel [[position]]) {
+  /* Compiles, but "Link failed: fragment input pixel was not found in
+     vertex shader outputs. -> Need to change [[sstage_in]] to
+     [[position]] https://stackoverflow.com/a/41559146/780743 */
+  return float4(pixel.x/1000,pixel.y/1000,pixel.y/1000,1);
+  //return float4(1.0,0.5,0,1);
+  
 }

@@ -87,6 +87,8 @@
                              :title "Metal Tool Kit demo"))
          (view (make-instance 'mtk-view))
          (shader-source (uiop:read-file-string "example/example.metal")) ; FIXME 2025-08-16 14:47:17 what sets cwd?
+         ;; Uncompilable shader would be described in sly-inferior-lisp log from objc until I get lisp impl working.
+         ;; Doesn't kill repl/runtime, just Continue.
          (library (mtl::make-library (device view) shader-source))
          (vertex-fn (mtl::make-function library "vertex_main"))
          (fragment-fn (mtl::make-function library "fragment_main"))
