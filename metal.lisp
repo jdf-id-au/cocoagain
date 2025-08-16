@@ -198,16 +198,48 @@
 
 (defun set-vertex-descriptor-attribute (vertex-descriptor index format offset buffer-index)
   (let* ((attribute (ns:objc (ns:objc vertex-descriptor "attributes" :pointer)
-			     "objectAtIndexedSubscript:" :int index :pointer)))
+                             "objectAtIndexedSubscript:" :int index :pointer)))
+    ;; The format of the vertex attribute.
     (ns:objc attribute "setFormat:" :int format)
+    ;; The location of an attribute in vertex data, determined by the
+    ;; byte offset from the start of the vertex data.
     (ns:objc attribute "setOffset:" :int offset)
+    ;; The index in the argument table for the associated vertex buffer.
     (ns:objc attribute "setBufferIndex:" :int buffer-index)))
 
 (defun set-vertex-descriptor-layout (vertex-descriptor index stride step-rate step-function)
   (let* ((layout (ns:objc (ns:objc vertex-descriptor "layouts" :pointer)
-			     "objectAtIndexedSubscript:" :int index :pointer)))
+                          "objectAtIndexedSubscript:" :int index :pointer)))
+    ;; The number of bytes between the first byte of two consecutive
+    ;; vertices in a buffer. Check the Metal feature set tables (PDF)
+    ;; for potential alignment restrictions for stride.
     (ns:objc layout "setStride:" :int stride)
+    ;; The interval at which the vertex and its attributes are
+    ;; presented to the vertex function. The default value is 1. The
+    ;; stepRate value, in conjunction with the stepFunction property,
+    ;; determines how often the function fetches new attribute data.
+    ;; The stepRate property is generally used when stepFunction is
+    ;; MTLVertexStepFunctionPerInstance. If stepRate is equal to 1,
+    ;; new attribute data is fetched for every instance; if stepRate
+    ;; is equal to 2, new attribute data is fetched for every two
+    ;; instances, and so forth.
     (ns:objc layout "setStepRate:" :int step-rate)
+    ;; The circumstances under which the vertex and its attributes are
+    ;; presented to the vertex function. The default value is
+    ;; MTLVertexStepFunctionPerVertex.
+    ;; If stepFunction is MTLVertexStepFunctionPerVertex, the function
+    ;; fetches new attribute data based on the [[vertex_id]] attribute
+    ;; qualifier. The function fetches new attribute data each time a
+    ;; new vertex is processed. In this case, stepRate must be set to
+    ;; 1, which is its default value.
+    ;; If stepFunction is MTLVertexStepFunctionPerInstance, the
+    ;; function fetches new attribute data based on the
+    ;; [[instance_id]] attribute qualifier. In this case, stepRate
+    ;; must be greater than 0 and its value determines how often the
+    ;; function fetches new attribute data.
+    ;; If stepFunction is MTLVertexStepFunctionConstant, the function
+    ;; fetches attribute data just once, and that attribute data is
+    ;; used for every vertex. In this case,stepRate must be set to 0.
     (ns:objc layout "setStepFunction:" :int step-function)))
 
 (defun make-render-pipeline-state (device render-pipeline-descriptor)
