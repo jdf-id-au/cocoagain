@@ -267,7 +267,7 @@
           p))))
 
 (defun make-render-pipeline-state (view render-pipeline-descriptor)
-  (protect (objc view "deviceRenderPipelineStateWithDescriptor:"
+  (ns:protect (ns:objc view "deviceRenderPipelineStateWithDescriptor:"
                  :pointer render-pipeline-descriptor
                  :pointer)
            "Failed to create render pipeline state (objc impl)."))
