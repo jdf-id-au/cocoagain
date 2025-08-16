@@ -266,6 +266,12 @@
                  (ns:objc (cffi:mem-ref err :pointer) "localizedDescription")) ; NIL
           p))))
 
+(defun make-render-pipeline-state (view render-pipeline-descriptor)
+  (protect (objc view "deviceRenderPipelineStateWithDescriptor:"
+                 :pointer render-pipeline-descriptor
+                 :pointer)
+           "Failed to create render pipeline state (objc impl)."))
+
 (defun make-depth-stencil-descriptor ()
   (ns:new "MTLDepthStencilDescriptor"))
 

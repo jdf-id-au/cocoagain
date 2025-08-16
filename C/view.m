@@ -100,7 +100,7 @@
 -(void) drawInMTKView: (MTKView *)view {
   mDrawFn(self.id, DRAW, NULL, NULL, view.bounds.size.width, view.bounds.size.height);
 }
--(id<MTLRenderPipelineState>) renderPipelineStateWithDescriptor: (MTLRenderPipelineDescriptor *) d {
+-(id<MTLRenderPipelineState>) deviceRenderPipelineStateWithDescriptor: (MTLRenderPipelineDescriptor *) d {
   id e = [NSError errorWithDomain: @"dummy"
                                code: 0
                            userInfo: nil]; // only because can't alloc by interface

@@ -86,6 +86,8 @@
                              :rect (in-screen-rect (rect 0 1000 720 450))
                              :title "Metal Tool Kit demo"))
          (view (make-instance 'mtk-view))
+
+         ;; TODO 2025-08-16 20:03:21 separate out so shader (pipeline etc?) can be hot reloaded
          (shader-source (uiop:read-file-string "example/example.metal")) ; FIXME 2025-08-16 14:47:17 what sets cwd?
          ;; Uncompilable shader would be described in sly-inferior-lisp log from objc until I get lisp impl working.
          ;; Doesn't kill repl/runtime, just Continue.
@@ -101,10 +103,7 @@
     (mtl::set-vertex-descriptor-attribute vd 0 mtl:+vertex-format-float3+ 0 0)
     (mtl::set-vertex-descriptor-layout vd 0 (* 3 bytes-per-float) 1 mtl:+vertex-step-function-per-vertex+)
     (mtl::set-vertex-descriptor pd vd)
-    (setf (pipeline-state ctx) (protect
-                                (objc view "renderPipelineStateWithDescriptor:" :pointer pd :pointer)
-                                "Failed to create render pipeline state via objc.")
-          #+nil(mtl:make-render-pipeline-state (device view) pd)
+    (setf (pipeline-state ctx) (mtl:make-render-pipeline-state view pd)
           (command-queue ctx) (mtl:make-command-queue (device view)))
     (setf (content-view win) view)
     (window-show win)))

@@ -1,8 +1,8 @@
 #include <metal_stdlib>
 using namespace metal;
 
-// FIXME 2025-08-16 00:04:30 learn msl e.g.
-// Metal-Shading-Language-Specification.pdf ch 5 e.g. 5.2.2 p111
+// FIXME 2025-08-16 00:04:30 learn msl:
+// Metal-Shading-Language-Specification.pdf
 
 /* 5.2.2 For per-vertex input passed as an argument declared with the
 [[stage_in]] attribute, each element of the per-vertex input must
