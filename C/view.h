@@ -35,5 +35,6 @@ enum {
   DrawFn mDrawFn;
   EventFn mEventFn;
 }
+-(id<MTLRenderPipelineState>) renderPipelineStateWithDescriptor: (MTLRenderPipelineDescriptor *) d;
 @property(readonly, nonatomic) int id;
 @end

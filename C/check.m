@@ -1,3 +1,5 @@
+// Check the lib etc actually work before struggling in lisp...
+
 #import "application.h"
 
 void delegateCb(int action) {
@@ -27,7 +29,6 @@ BOOL setError(NSError **errout) {
   return YES;
 }
 
-// Check the lib actually works before struggling in lisp...
 int main(void) {
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
   App *app = [App sharedApplication];

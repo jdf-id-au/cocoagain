@@ -56,6 +56,9 @@
                                        :initial-contents '( 0.0  1.0  0.0
                                                            -1.0 -1.0  0.0
                                                            1.0 -1.0  0.0)))
+
+(defparameter bytes-per-float 4)
+
 (progn 
   (defmethod draw ((self mtk-view))
     (cffi:with-foreign-object (fvb :float (array-total-size *vertex-data*))
@@ -89,9 +92,7 @@
          (fragment-fn (mtl::make-function library "fragment_main"))
          (pd (mtl::make-render-pipeline-descriptor))
          (vd (mtl::make-vertex-descriptor))
-         (ctx (context view))
-         (bytes-per-float 4)
-         )
+         (ctx (context view)))
     (mtl::set-color-attachment-pixel-format pd 0 mtl::+pixel-format-r8-uint+)
     (mtl::set-vertex-function pd vertex-fn)
     (mtl::set-fragment-function pd fragment-fn)
@@ -100,7 +101,9 @@
     (mtl::set-vertex-descriptor pd vd)
     ;; FIXME 2025-08-16 03:48:13 stubbornly not making ps
     ;; Consider trying newRenderPipelineStateWithDescriptor:completionHandler: (async)?
-    (setf (pipeline-state ctx) (mtl:make-render-pipeline-state (device view) pd)
+    ;; ...or in view.m?
+    (setf (pipeline-state ctx) (objc view "renderPipelineStateWithDescriptor:" :pointer pd )
+                                        ;(mtl:make-render-pipeline-state (device view) pd)
           (command-queue ctx) (mtl:make-command-queue (device view)))
     (setf (content-view win) view)
     (window-show win)))

@@ -93,6 +93,16 @@
 -(void) drawInMTKView: (MTKView *)view {
   mDrawFn(self.id, DRAW, NULL, NULL, view.bounds.size.width, view.bounds.size.height);
 }
+-(id<MTLRenderPipelineState>) renderPipelineStateWithDescriptor: (MTLRenderPipelineDescriptor *) d {
+  id e = [NSError errorWithDomain: @"dummy"
+                               code: 0
+                           userInfo: nil]; // only because can't alloc by interface
+  id p = [self.device newRenderPipelineStateWithDescriptor: d
+                                                     error: &e];
+  if (p) return p;
+  NSLog(@"Failed to create render pipeline stat in objc %@.", [e localizedDescription]);
+  return nil;
+}
 -(void) dealloc {
   mDrawFn(self.id, SHUTDOWN, NULL, NULL, self.bounds.size.width, self.bounds.size.height);
   [super dealloc];
