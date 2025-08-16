@@ -60,7 +60,6 @@
 (defparameter bytes-per-float 4)
 
 (progn
-  ;; Caught signal while drawing: "The value NIL is not of type (SIGNED-BYTE 32) when binding SB-ALIEN::VALUE"
   (defmethod draw ((self mtk-view))
     (cffi:with-foreign-object (fvb :float (array-total-size *vertex-data*))
       ;; TODO 2025-08-16 02:28:20 consider https://www.cliki.net/WAAF-CFFI
@@ -72,7 +71,6 @@
              (rp (mtl::render-pass-descriptor self))
              (ce (mtl::get-render-command-encoder cb rp))
              (ps (pipeline-state (context self))))
-        (format t "pipeline-state ~a" ps)
         (unwind-protect
              (progn
                (mtl::set-render-pipeline-state ce ps)
@@ -80,8 +78,7 @@
                (mtl::draw-primitives ce mtl:+primitive-type-triangle+ 0 3))
           (mtl::end-encoding ce))
         (mtl::present-drawable cb (mtl::drawable self))
-        (mtl::commit cb)
-        (format t "commit ~%"))))
+        (mtl::commit cb))))
   (redisplay-last))
 
 (with-event-loop (:waitp t)
@@ -89,15 +86,13 @@
                              :rect (in-screen-rect (rect 0 1000 720 450))
                              :title "Metal Tool Kit demo"))
          (view (make-instance 'mtk-view))
-         (shader-source (uiop:read-file-string "/Users/jdf/Projects/Learning/common-lisp/cocoagain/example/example.metal"))
+         (shader-source (uiop:read-file-string "example/example.metal")) ; FIXME 2025-08-16 14:47:17 what sets cwd?
          (library (mtl::make-library (device view) shader-source))
          (vertex-fn (mtl::make-function library "vertex_main"))
          (fragment-fn (mtl::make-function library "fragment_main"))
          (pd (mtl::make-render-pipeline-descriptor))
          (vd (mtl::make-vertex-descriptor))
          (ctx (context view)))
-    ;; NB 2025-08-16 10:45:54 sly-inferior-lisp feedback:
-    ;; Failed to create render pipeline stat in objc output of type float4 is not compatible with a MTLPixelFormatR8Uint color attachment..
     (mtl::set-color-attachment-pixel-format pd 0 mtl::+pixel-format-a8-unorm+)
     (mtl::set-vertex-function pd vertex-fn)
     (mtl::set-fragment-function pd fragment-fn)

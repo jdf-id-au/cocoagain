@@ -194,7 +194,7 @@
   (ns:objc render-pipeline-descriptor "setDepthAttachmentPixelFormat:" :unsigned-int pixel-format))
 
 (defun make-vertex-descriptor ()
-  (ns::new "MTLVertexDescriptor")) ; TODO 2025-08-16 01:45:11 cleanup after?
+  (ns:new "MTLVertexDescriptor")) ; TODO 2025-08-16 01:45:11 cleanup after?
 
 (defun set-vertex-descriptor-attribute (vertex-descriptor index format offset buffer-index)
   (let* ((attribute (ns:objc (ns:objc vertex-descriptor "attributes" :pointer)
