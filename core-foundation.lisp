@@ -116,6 +116,14 @@
 
 ;; ────────────────────────────────────────────────────────────────────── Colour
 
+(defun color (&key (r 0.0) (g 0.0) (b 0.0) (a 1.0))
+  (ns:objc "NSColor" "colorWithCalibratedRed:green:blue:alpha:"
+	   :double (float r 1.0d0)
+	   :double (float g 1.0d0)
+	   :double (float b 1.0d0)
+	   :double (float a 1.0d0)
+	   :pointer))
+
 ;; ─────────────────────────────────────────────────────────────────── Structure
 
 (cffi:defcstruct (point :class %point) (x :double) (y :double))

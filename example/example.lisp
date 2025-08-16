@@ -3,7 +3,7 @@
 
 (in-package :cocoagain)
 
-;; (gethash 0 *view-table*)
+;; (maphash #'(lambda (k v) (format t "~S ~S~%" k v)) *view-table*)
 ;; (redisplay (gethash 0 *view-table*)) ; TODO get `redisplay` working? SIGBUS?
 
 (defun display-all ()
@@ -17,18 +17,16 @@
 (progn
   (defmethod draw ((self view))
     (let* ((ctx (current-cg-context))
-           ;;(r (rect (random 100) 10 20 30))
            (w (width self))
            (h (height self))
-           (r (rect 0 0 w h))
-           )
+           (r (rect 0 0 w h)))
       ;;(format t "bounds ~a~%" (cg:display-bounds 0))
       (cg:set-rgb-fill-color ctx (random 1.0) (random 1.0) (random 1.0))
       (cg:fill-rect ctx r)
       (cg:set-line-width ctx 10.0)
       (cg:set-rgb-stroke-color ctx (random 1.0) 0 0)
       (cg:move-to-point ctx (random w) (random h))
-      #+nil(cg:add-line-to-point ctx (random w) (random h))
+      (cg:add-line-to-point ctx (random w) (random h))
       (cg:add-curve-to-point ctx (random w) (random h)
                              (random w) (random h)
                              (random w) (random h))
@@ -48,7 +46,10 @@
 (defclass mtk-context () ; TODO 2025-08-16 03:22:06 learn how this changes in complex scenesn
   ((pipeline-state :accessor pipeline-state)
    (command-queue :accessor command-queue))
-  (:documentation "In-development way of storing all required context such as pipelines, vertex arrays etc. Could promote to `view.lisp` if ever becomes general-purpose."))
+  (:documentation
+   "In-development way of storing all required context such as pipelines,
+vertex arrays etc. Could promote to `view.lisp` if ever becomes
+general-purpose."))
 
 (defparameter *vertex-data*
   (make-array '(9) :element-type 'single-float
@@ -102,21 +103,19 @@
     (mtl::set-vertex-descriptor-attribute vd 0 mtl:+vertex-format-float3+ 0 0)
     (mtl::set-vertex-descriptor-layout vd 0 (* 3 bytes-per-float) 1 mtl:+vertex-step-function-per-vertex+)
     (mtl::set-vertex-descriptor pd vd)
-    (setf (pipeline-state ctx) (mtl:make-render-pipeline-state view pd)
-          (command-queue ctx) (mtl:make-command-queue (device view)))
+    (setf (pipeline-state ctx) (mtl::make-render-pipeline-state view pd)
+          (command-queue ctx) (mtl::make-command-queue (device view)))
     (setf (content-view win) view)
     (window-show win)))
 
-#+nil(maphash #'(lambda (k v)
-             (format t "~S ~S~%" k v)) *view-table*)
+#+nil(progn
+       (defun scale-cursor (loc dim)
+         "Scale cursor to [-1,1]" ; could DISASSEMBLE and optimise...
+         (coerce (1- (* (/ loc dim) 2)) 'single-float))
 
-(defun scale-cursor (loc dim)
-  "Scale cursor to [-1,1]" ; could DISASSEMBLE and optimise...
-  (coerce (1- (* (/ loc dim) 2)) 'single-float))
-
-#+nil(defmethod mouse-moved ((self base-view) event location-x location-y)
-       ;(format t "~a ~a ~%" location-x location-y)
-       (setf (aref *vertex-data* 0) (scale-cursor location-x (width self))
-             (aref *vertex-data* 1) (scale-cursor location-y (height self))))
+       (defmethod mouse-moved ((self base-view) event location-x location-y)
+         ;;(format t "~a ~a ~%" location-x location-y)
+         (setf (aref *vertex-data* 0) (scale-cursor location-x (width self))
+               (aref *vertex-data* 1) (scale-cursor location-y (height self)))))
 
 #+nil(uiop/os:getcwd) ; depends on from which buffer sly was started

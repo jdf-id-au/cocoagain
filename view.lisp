@@ -88,7 +88,9 @@
   (objc view "setNeedsDisplayInRect:" (:struct rect)
         (rect 0 0 (width view) (height view))))
 
-(defclass view (base-view) ()) ; ────────────────────────────────────────── View
+;; ─────────────────────────────────────────────────── Core Graphics (etc) View 
+
+(defclass view (base-view) ())
 
 (defmethod initialize-instance :after
     ((self view)
@@ -101,13 +103,13 @@
               :pointer (cffi:callback view-draw-callback)
               :pointer (cffi:callback view-event-callback)
               :pointer)))
+
 (defun current-cg-context ()
-  (let* ((graphic-context (objc "NSGraphicsContext" "currentContext"
-                                :pointer)))
-    (if (cffi:null-pointer-p graphic-context) graphic-context ; ?
+  (let* ((graphic-context (objc "NSGraphicsContext" "currentContext" :pointer)))
+    (if (cffi:null-pointer-p graphic-context) graphic-context ; ??
         (objc graphic-context "CGContext" :pointer))))
 
-; ────────────────────────────────────────────────────────── Metal Tool Kit view
+;; ───────────────────────────────────────────────────────── Metal Tool Kit view
 
 (defclass mtk-view (base-view)
   ((device :accessor device)

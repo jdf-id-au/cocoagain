@@ -1,5 +1,7 @@
 (in-package :mtl)
 
+;; ─────────────────────────────────────────────────────────────────────── Types
+
 (cffi:defcstruct (origin :class %origin)
   (x :unsigned-long) ; really
   (y :unsigned-long)
@@ -86,7 +88,7 @@
           near (coerce (viewport-near viewport) 'double-float)
           far (coerce (viewport-far viewport) 'double-float))))
 
-(defun make-command-queue (device) ; ───────────────────────────── Command queue
+(defun make-command-queue (device)
   (ns:protect
    (ns:objc device "newCommandQueue" :pointer)
    "Failed to create command queue."))
@@ -156,7 +158,7 @@
 (defun end-encoding (command-encoder)
   (ns:objc command-encoder "endEncoding"))
 
-;; ──────────────────────────────────────────────────────────────────── Pipeline
+;; ───────────────────────────────────────────────────────────────────── Shaders
 
 (defun make-library (device source &key (options (cffi:null-pointer)))
   (ns:protect
@@ -172,17 +174,19 @@
    (ns:objc library "newFunctionWithName:" :pointer (ns:autorelease (ns:make-ns-string name)) :pointer)
    "Failed to find function: ~a" name))
 
+;; ───────────────────────────────────────────────────────── Pipeline descriptor
+
 (defun make-render-pipeline-descriptor ()
   (ns:new "MTLRenderPipelineDescriptor"))
 
 (defun set-vertex-function (render-pipeline-descriptor function)
   (ns:objc render-pipeline-descriptor "setVertexFunction:" :pointer function))
 
-(defun set-vertex-descriptor (render-pipeline-descriptor vertex-descriptor)
-  (ns:objc render-pipeline-descriptor "setVertexDescriptor:" :pointer vertex-descriptor))
-
 (defun set-fragment-function (render-pipeline-descriptor function)
   (ns:objc render-pipeline-descriptor "setFragmentFunction:" :pointer function))
+
+(defun set-vertex-descriptor (render-pipeline-descriptor vertex-descriptor)
+  (ns:objc render-pipeline-descriptor "setVertexDescriptor:" :pointer vertex-descriptor))
 
 (defun set-color-attachment-pixel-format (render-pipeline-descriptor index pixel-format)
   (let* ((color-attachment
@@ -192,6 +196,8 @@
 
 (defun set-depth-attachment-pixel-format (render-pipeline-descriptor pixel-format)
   (ns:objc render-pipeline-descriptor "setDepthAttachmentPixelFormat:" :unsigned-int pixel-format))
+
+;; ─────────────────────────────────────────────────────────── Vertex descriptor
 
 (defun make-vertex-descriptor ()
   (ns:new "MTLVertexDescriptor")) ; TODO 2025-08-16 01:45:11 cleanup after?
@@ -242,6 +248,8 @@
     ;; used for every vertex. In this case,stepRate must be set to 0.
     (ns:objc layout "setStepFunction:" :int step-function)))
 
+;; ────────────────────────────────────────────────────────────── Pipeline state
+
 #+nil(defun make-render-pipeline-state (device render-pipeline-descriptor)
   (cffi:with-foreign-object (err :pointer)
     (let ((e (ns:objc "NSError" "errorWithDomain:code:userInfo:"
@@ -272,6 +280,8 @@
                  :pointer)
            "Failed to create render pipeline state (objc impl)."))
 
+;; ─────────────────────────────────────────────────────────────── Depth stencil
+
 (defun make-depth-stencil-descriptor ()
   (ns:new "MTLDepthStencilDescriptor"))
 
@@ -284,7 +294,8 @@
 (defun make-depth-stencil-state (device depth-stencil-descriptor)
   (ns:objc device "newDepthStencilStateWithDescriptor:" :pointer depth-stencil-descriptor :pointer))
 
-;; ─────────────────────────────────────────────────────────────────── MTLBuffer
+;; ────────────────────────────────────────────────────────────────────── Buffer
+
 (defun make-buffer (device data length &optional (options +resource-cpu-cache-mode-default-cache+))
   (ns:objc device "newBufferWithBytes:length:options:"
 	   :pointer data
@@ -295,7 +306,8 @@
 (defun buffer-contents (buffer)
   (ns:objc buffer "contents" :pointer))
 
-;; ────────────────────────────────────────────────────────────────── MTLTexture
+;; ───────────────────────────────────────────────────────────────────── Texture
+
 (defun get-texture2d-descriptor (pixel-format width height mipmap)
   (ns:objc "MTLTextureDescriptor" "texture2DDescriptorWithPixelFormat:width:height:mipmapped:"
 	   :int pixel-format
@@ -313,6 +325,9 @@
 	   :int mipmap-level
 	   :pointer data
 	   :int bpr))
+
+;; ──────────────────────────────────────────────────────────────── Clear colour
+;; TODO 2025-08-16 22:57:26 move?
 
 (cffi:defcstruct (clear-color :class %clear-color)
   (red :double)

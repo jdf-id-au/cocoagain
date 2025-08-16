@@ -30,8 +30,4 @@
    #:stroke-path))
 
 (defpackage :mtl
-  (:use cl)
-  (:export
-   #:make-render-pipeline-descriptor
-   #:make-render-pipeline-state
-   #:make-command-queue))
+  (:use cl))
