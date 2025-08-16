@@ -52,9 +52,10 @@
            (cffi:mem-ref ,result '(:struct ,return-type)))))))
 
 (defmacro protect (form &rest message)
-  "Evaluate form and raise error if it's a cffi null pointer."
+  "Evaluate form and raise error if it's nil or a cffi null pointer."
   `(let ((pointer ,form))
-     (if (cffi:null-pointer-p pointer)
+     (if (or (not pointer) ; i.e. nil
+             (cffi:null-pointer-p pointer))
          (error ,@message)
          pointer)))
 

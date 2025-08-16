@@ -10,6 +10,10 @@ vertex float4 vertex_main(VertexIn vert [[ stage_in ]]) {
   return float4(vert.position, 1.0f);
 }
 
-fragment float4 fragment_main(float4 pixel [[ stage_in ]]) {
-  return float4(1,0,0,1);
+fragment float4 fragment_main(float4 pixel [[stage_in]]) {
+  // default MTLPixelFormatR8Uint, compatible with half or float
+  // https://stackoverflow.com/a/66637191/780743
+  rgba8unorm<float4> ret;
+  ret = float4(1.0,0.0,0.0,1.0);
+  return ret;
 }
