@@ -4,6 +4,9 @@ using namespace metal;
 // FIXME 2025-08-16 00:04:30 learn msl:
 // Metal-Shading-Language-Specification.pdf
 
+// uniform buffers pass constant data
+// argument buffers bundle resources and data for a particular shader into one object
+
 /* 5.2.2 For per-vertex input passed as an argument declared with the
 [[stage_in]] attribute, each element of the per-vertex input must
 specify the vertex attribute location as [[attribute(index)]]. */
@@ -24,7 +27,7 @@ must include an element declared with the [[position]] attribute. */
 vertex VertexOut vertex_main(VertexIn vert [[stage_in]]) {
   return (VertexOut) {
     .position = float4(vert.position, 1),
-    .color = float4((vert.position + 1)/2, 1)
+    .color = float4((vert.position + 1)/2.0, 1)
   };
 }
 
@@ -32,5 +35,6 @@ vertex VertexOut vertex_main(VertexIn vert [[stage_in]]) {
 become the per-fragment inputs to a fragment function. The
 [[stage_in]] attribute can assemble the per-fragment inputs. */
 fragment float4 fragment_main(VertexOut in [[stage_in]]) {
+  // nice gradient on intel, buggy red on arm64? seems to disregard this return value?
   return in.color;
 }

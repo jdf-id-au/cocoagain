@@ -108,8 +108,16 @@
     (setf (content-view win) view)
     (window-show win)))
 
-#+nil (maphash #'(lambda (k v)
+#+nil(maphash #'(lambda (k v)
              (format t "~S ~S~%" k v)) *view-table*)
 
+(defun scale-cursor (loc dim)
+  "Scale cursor to [-1,1]"
+  (coerce (1- (* (/ loc dim) 2)) 'single-float))
+
 #+nil(defmethod mouse-moved ((self base-view) event location-x location-y)
-       (format t "~a ~a ~%" location-x location-y))
+       (format t "~a ~a ~%" location-x location-y)
+       (setf (aref *vertex-data* 0) (scale-cursor location-x (width self))
+             (aref *vertex-data* 1) (scale-cursor location-y (height self))))
+
+#+nil(uiop/os:getcwd) ; depends on from which buffer sly was started
