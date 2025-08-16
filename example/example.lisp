@@ -115,12 +115,4 @@
 
 #+nil(defmethod mouse-moved ((self base-view) event location-x location-y)
        (format t "~a ~a ~%" location-x location-y))
-(cffi:foreign-alloc :pointer)
 
-(array-total-size
- (make-array '(3 3)
-             :element-type 'single-float
-             :initial-contents
-             '(( 0.0  1.0  0.0)
-               (-1.0 -1.0  0.0)
-               ( 1.0 -1.0  0.0))))
