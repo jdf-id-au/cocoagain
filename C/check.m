@@ -20,6 +20,13 @@ void delegateCb(int action) {
 void widgetCb(id wId) {
 }
 
+BOOL setError(NSError **errout) {
+  *errout = [NSError errorWithDomain: @"replacement"
+                                code: 1234
+                            userInfo: nil];
+  return YES;
+}
+
 // Check the lib actually works before struggling in lisp...
 int main(void) {
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
@@ -43,10 +50,20 @@ int main(void) {
   [app setDelegateCallback: delegateCb];
   [app setWidgetCallback: widgetCb];
   [app setDelegate: app];
+  // ─────────────────────────────────────────────────────────────────── logging
   //NSLog(@"About to run");
-  unsigned char yep = 1;
-  NSNumber *mmhmm = [NSNumber numberWithBool: yep];
-  NSLog(@"numberWithBool: %@", [mmhmm stringValue]);
+  // ───────────────────────────────────────────────────────── message with bool
+  //unsigned char yep = 1;
+  //NSNumber *mmhmm = [NSNumber numberWithBool: yep];
+  //NSLog(@"numberWithBool: %@", [mmhmm stringValue]);
+  // ──────────────────────────────────────────────────── error as out parameter
+  id err = [NSError errorWithDomain: @"lack of"
+                               code: 0
+                           userInfo: nil];
+  NSLog(@"%@", [err localizedDescription]);
+  BOOL result = setError(&err);
+  NSLog(@"%hhd: %@", result, [err localizedDescription]);
+  // ───────────────────────────────────────────────────────────────────────────
   [app run];
   [pool release];
 }

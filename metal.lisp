@@ -225,12 +225,13 @@
                      :pointer)))
       (if (cffi:null-pointer-p p)
           (error "Failed to create render pipeline state.~%~a ~a ~a ~a ~a"
-                 ;; FIXME 2025-08-16 01:38:25 is this the right level of indirection?
-                 ;; un-ref'd err given memory fault...
                  device ; seemingly ok
                  render-pipeline-descriptor ; seemingly ok
                  p ; null
                  err
+                 ;; TODO 2025-08-16 09:49:20
+                 ;; Move this to dont-fail once polished, maybe have unhygienic ERR manager
+                 ;; e.g. (dont-fail (thing ERR)) -> (cffi:with-foreign-object (ERR :pointer) (thing ERR) ...)
                  (ns:objc (cffi:mem-ref err :pointer) "localizedDescription")) ; NIL
           p))))
 

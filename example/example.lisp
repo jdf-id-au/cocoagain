@@ -7,16 +7,19 @@
 (defconstant +YES+ (objc (alloc "NSNumber") "initWithBool:" :unsigned-char 1 :pointer))
 (defconstant +NO+ (objc (alloc "NSNumber") "initWithBool:" :unsigned-char 0 :pointer))
 
+;; (gethash 0 *view-table*)
+;; (redisplay (gethash 0 *view-table*))
+
 (defun redisplay-last ()
   (when (not (zerop (hash-table-count *view-table*)))
     (let* ((latest-id (loop for k being each hash-key of *view-table* maximize k))
            (latest-view (gethash latest-id *view-table*)))
-      #+nil latest-view
       ;; ugh still memory fault
       #+nil(objc latest-view "setValue:forKey:" :pointer +YES+ :string "needsDisplay")
-      (redisplay latest-view)
+      ;; FIXME 2025-08-16 10:10:06 sig10 ie SIBGUS ie bad access?
+      #+nil(redisplay latest-view)
       ;; "simpler":
-      #+nil(objc latest-view "display"))))
+      (objc latest-view "display"))))
 
 (progn ; ───────────────────────────────────────────────────────── Core Graphics
   (defmethod draw ((self view))
@@ -32,7 +35,7 @@
       (cg:set-line-width ctx 10.0)
       (cg:set-rgb-stroke-color ctx (random 1.0) 0 0)
       (cg:move-to-point ctx (random w) (random h))
-      #+nil(add-line-to-point ctx (random w) (random h))
+      (cg:add-line-to-point ctx (random w) (random h))
       (cg:add-curve-to-point ctx (random w) (random h) (random w) (random h) (random w) (random h))
       (cg:stroke-path ctx)))
   (redisplay-last))
@@ -97,8 +100,8 @@
     (mtl::set-vertex-descriptor pd vd)
     ;; FIXME 2025-08-16 03:48:13 stubbornly not making ps
     ;; Consider trying newRenderPipelineStateWithDescriptor:completionHandler: (async)?
-    (setf (pipeline-state ctx) (mtl::make-render-pipeline-state (device view) pd)
-          (command-queue ctx) (mtl::make-command-queue (device view)))
+    (setf (pipeline-state ctx) (mtl:make-render-pipeline-state (device view) pd)
+          (command-queue ctx) (mtl:make-command-queue (device view)))
     (setf (content-view win) view)
     (window-show win)))
 

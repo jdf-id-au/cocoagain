@@ -24,10 +24,13 @@
    #:set-rgb-stroke-color
    #:move-to-point
    #:line-to-point
+   #:add-line-to-point
    #:add-curve-to-point
    #:stroke-path))
 
 (defpackage :mtl
   (:use cl)
   (:export
-   #:make-render-pipeline-descriptor))
+   #:make-render-pipeline-descriptor
+   #:make-render-pipeline-state
+   #:make-command-queue))

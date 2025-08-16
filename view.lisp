@@ -1,6 +1,7 @@
 (in-package :cocoagain)
 
 (defvar *view-table* (make-hash-table))
+;; (clrhash *view-table*)
 
 (cffi:defcallback view-draw-callback :void
     ((id :int)

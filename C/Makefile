@@ -11,9 +11,6 @@ FRAMEWORKS=-framework Cocoa -framework QuartzCore \
 application.m window.m view.m timer.m
 	cc -dynamiclib $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) $^ -o $@
 
-../check: check.m ../libcocoagain.dylib
+# Prepare compliation db (for lsp...) with $ bear -- make check
+check: check.m ../libcocoagain.dylib
 	cc $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) -lcocoagain -I./ -L../ $< -o $@
-
-check: ../check
-
-.PHONY: check
