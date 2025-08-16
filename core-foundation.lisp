@@ -51,6 +51,13 @@
                                  ,@rest)
            (cffi:mem-ref ,result '(:struct ,return-type)))))))
 
+(defmacro protect (form &rest message)
+  "Evaluate form and raise error if it's a cffi null pointer."
+  `(let ((pointer ,form))
+     (if (cffi:null-pointer-p pointer)
+         (error ,@message)
+         pointer)))
+
 (defun alloc (cls) (objc cls "alloc" :pointer))
 
 (defmethod init ((instance #+sbcl sb-sys:system-area-pointer))

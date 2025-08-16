@@ -1,11 +1,5 @@
 (in-package :mtl)
 
-(defmacro dont-fail (form &rest message)
-  `(let ((pointer ,form))
-     (if (cffi:null-pointer-p pointer)
-         (error ,@message)
-         pointer)))
-
 (cffi:defcstruct (origin :class %origin)
   (x :unsigned-long) ; really
   (y :unsigned-long)
@@ -93,22 +87,22 @@
           far (coerce (viewport-far viewport) 'double-float))))
 
 (defun make-command-queue (device) ; ───────────────────────────── Command queue
-  (dont-fail
+  (ns:protect
    (ns:objc device "newCommandQueue" :pointer)
    "Failed to create command queue."))
 
 (defun get-command-buffer (command-queue)
-  (dont-fail
+  (ns:protect
    (ns:objc command-queue "commandBuffer" :pointer)
    "Failed to get command buffer."))
 
 (defun render-pass-descriptor (mtk-view)
-  (dont-fail
+  (ns:protect
    (ns:objc mtk-view "currentRenderPassDescriptor" :pointer)
    "Failed to get current pass descriptor."))
 
 (defun get-render-command-encoder (command-buffer descriptor)
-  (dont-fail
+  (ns:protect
    (ns:objc command-buffer "renderCommandEncoderWithDescriptor:" :pointer descriptor :pointer)
    "Failed to get render command encoder."))
 
@@ -165,7 +159,7 @@
 ;; ──────────────────────────────────────────────────────────────────── Pipeline
 
 (defun make-library (device source &key (options (cffi:null-pointer)))
-  (dont-fail
+  (ns:protect
    (ns:objc device "newLibraryWithSource:options:error:"
                    :pointer (ns:autorelease (ns:make-ns-string source))
                    :pointer options
@@ -174,7 +168,7 @@
    "Shader compilation failed: ~% ~a" source))
 
 (defun make-function (library name)
-  (dont-fail
+  (ns:protect
    (ns:objc library "newFunctionWithName:" :pointer (ns:autorelease (ns:make-ns-string name)) :pointer)
    "Failed to find function: ~a" name))
 
@@ -230,7 +224,7 @@
                  p ; null
                  err
                  ;; TODO 2025-08-16 09:49:20
-                 ;; Move this to dont-fail once polished, maybe have unhygienic ERR manager
+                 ;; Move this to ns:protect once polished, maybe have unhygienic ERR manager
                  ;; e.g. (dont-fail (thing ERR)) -> (cffi:with-foreign-object (ERR :pointer) (thing ERR) ...)
                  (ns:objc (cffi:mem-ref err :pointer) "localizedDescription")) ; NIL
           p))))

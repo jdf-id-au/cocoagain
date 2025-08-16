@@ -93,7 +93,9 @@
          (pd (mtl::make-render-pipeline-descriptor))
          (vd (mtl::make-vertex-descriptor))
          (ctx (context view)))
-    (mtl::set-color-attachment-pixel-format pd 0 mtl::+pixel-format-r8-uint+)
+    ;; NB 2025-08-16 10:45:54 sly-inferior-lisp feedback:
+    ;; Failed to create render pipeline stat in objc output of type float4 is not compatible with a MTLPixelFormatR8Uint color attachment..
+    (mtl::set-color-attachment-pixel-format pd 0 mtl::+pixel-format-)
     (mtl::set-vertex-function pd vertex-fn)
     (mtl::set-fragment-function pd fragment-fn)
     (mtl::set-vertex-descriptor-attribute vd 0 mtl:+vertex-format-float3+ 0 0)
@@ -102,7 +104,9 @@
     ;; FIXME 2025-08-16 03:48:13 stubbornly not making ps
     ;; Consider trying newRenderPipelineStateWithDescriptor:completionHandler: (async)?
     ;; ...or in view.m?
-    (setf (pipeline-state ctx) (objc view "renderPipelineStateWithDescriptor:" :pointer pd )
+    (setf (pipeline-state ctx) (mtl::dont-fail
+                                (objc view "renderPipelineStateWithDescriptor:" :pointer pd )
+                                "Failed to create render pipeline state via objc.")
                                         ;(mtl:make-render-pipeline-state (device view) pd)
           (command-queue ctx) (mtl:make-command-queue (device view)))
     (setf (content-view win) view)

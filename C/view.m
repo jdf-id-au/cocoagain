@@ -100,7 +100,8 @@
   id p = [self.device newRenderPipelineStateWithDescriptor: d
                                                      error: &e];
   if (p) return p;
-  NSLog(@"Failed to create render pipeline stat in objc %@.", [e localizedDescription]);
+  // NB 2025-08-16 10:47:11 this worked where attempted cffi equiv didn't...
+  NSLog(@"Failed to create render pipeline state in objc %@.", [e localizedDescription]);
   return nil;
 }
 -(void) dealloc {

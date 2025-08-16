@@ -3,6 +3,7 @@
   (:nicknames :ns)
   (:use :cl :alexandria)
   (:export ; ugh tedious to maintain
+   #:protect
    #:objc
    #:new
    #:autorelease
