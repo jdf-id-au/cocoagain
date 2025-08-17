@@ -3,7 +3,7 @@
 ;; ─────────────────────────────────────────────────────────────────────── Types
 
 (cffi:defcstruct (origin :class %origin)
-  (x :unsigned-long) ; really
+  (x :unsigned-long) ; why integer?
   (y :unsigned-long)
   (z :unsigned-long))
 
@@ -95,7 +95,7 @@
    (ns:objc device "newCommandQueue" :pointer)
    "Failed to create command queue."))
 
-(defun get-command-buffer (command-queue)
+(defun command-buffer (command-queue)
   (ns:protect
    (ns:objc command-queue "commandBuffer" :pointer)
    "Failed to get command buffer."))
@@ -105,7 +105,7 @@
    (ns:objc mtk-view "currentRenderPassDescriptor" :pointer)
    "Failed to get current pass descriptor."))
 
-(defun get-render-command-encoder (command-buffer render-pass)
+(defun render-command-encoder (command-buffer render-pass)
   (ns:protect
    (ns:objc command-buffer "renderCommandEncoderWithDescriptor:" :pointer render-pass :pointer)
    "Failed to get render command encoder."))
@@ -205,6 +205,7 @@
   (ns:new "MTLVertexDescriptor")) ; TODO 2025-08-16 01:45:11 cleanup after?
 
 (defun set-vertex-descriptor-attribute (vertex-descriptor index format offset buffer-index)
+  (assert (<= 0 index 31) "Index out of range") ; Metal-Feature-Set-Tables.pdf
   (let* ((attribute (ns:objc (ns:objc vertex-descriptor "attributes" :pointer)
                              "objectAtIndexedSubscript:" :int index :pointer)))
     ;; The format of the vertex attribute.
@@ -277,6 +278,7 @@
           p))))
 
 (defun make-render-pipeline-state (mtk-view pipeline-descriptor)
+  "Workaround, implemented in objc. Only uses view to get at device."
   (ns:protect (ns:objc mtk-view "deviceRenderPipelineStateWithDescriptor:"
                  :pointer pipeline-descriptor
                  :pointer)
@@ -298,7 +300,16 @@
 
 ;; ────────────────────────────────────────────────────────────────────── Buffer
 
-(defun make-buffer (device data length &optional (options +resource-cpu-cache-mode-default-cache+))
+(defun new-buffer (device length &optional (options (+ +resource-cpu-cache-mode-default-cache+
+                                                       +resource-storage-mode-managed+)))
+  (ns:objc device "newBufferWithLength:options:"
+           :int length
+           :int options
+           :pointer))
+
+(defun make-buffer (device data length &optional (options (+ +resource-cpu-cache-mode-default-cache+
+                                                             +resource-storage-mode-managed+)))
+  "Copies data."
   (ns:objc device "newBufferWithBytes:length:options:"
 	   :pointer data
 	   :int length
@@ -310,7 +321,7 @@
 
 ;; ───────────────────────────────────────────────────────────────────── Texture
 
-(defun get-texture2d-descriptor (pixel-format width height mipmap)
+(defun texture2d-descriptor (pixel-format width height mipmap)
   (ns:objc "MTLTextureDescriptor" "texture2DDescriptorWithPixelFormat:width:height:mipmapped:"
 	   :int pixel-format
 	   :int width
@@ -320,6 +331,8 @@
 
 (defun make-texture (device descriptor)
   (ns:objc device "newTextureWithDescriptor:" :pointer descriptor :pointer))
+
+;; TODO newTextureWithDescriptor:offset:bytesPerRow: on a MTLBuffer
 
 (defun replace-region (texture region mipmap-level data bpr)
   (ns:objc texture "replaceRegion:mipmapLevel:withBytes:bytesPerRow:"
@@ -378,7 +391,6 @@
 (define-constant +resource-storage-mode-memoryless+ 48)
 
 (define-constant +vertex-format-invalid+ 0)
-
 (define-constant +vertex-format-uchar+ 45)
 (define-constant +vertex-format-uchar2+ 1)
 (define-constant +vertex-format-uchar3+ 2)

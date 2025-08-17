@@ -42,71 +42,126 @@
     (setf (content-view win) view)
     (window-show win)))
 
-;; ────────────────────────────────────────────────────────────── Metal Tool Kit
+;; ─────────────────────────────────────────────────────────────────── Metal Kit
 
-  #|
+  #| https://developer.apple.com/library/archive/documentation/Miscellaneous/Conceptual/MetalProgrammingGuide/Cmd-Submiss/Cmd-Submiss.html
 
-shader library
+(NB Metal 4 is Apple Silicon only... this isn't 4)
+
+shader library [reusable]
   - functions... (e.g. vertex, fragment, ...)
 
-pipeline descriptor
-  - color attachment pixel format
-  - vertex function
-  - fragment function
-  - vertex descriptor
-  - pipeline state
-  - command queue (command buffers...)
+render pipeline x1
+  - color attachments... (format)
+  - depth attachment (format)
+  - vertex function x1
+  - fragment function x1
+  - vertex descriptor x1
+  - command queue x1
 
-vertex descriptor
+vertex descriptor x1
   - attributes... (format, offset, index into buffer)
   - layouts... (stride, step rate, step function)
 
-vertex buffer
+command queue x1 [reusable, generally thread-safe]
+  - command buffers... [transient, autoreleased]
+    - command encoders... [transient, autoreleased, one at a time per command buffer]
+    -> present drawable
+    -> commit
 
-pipeline state
-  
-render pass
-  - command encoder
-  
+Normally whole frame is rendered using one command buffer. Multiple
+command buffers if multithreaded. (MTLParallelRenderCommandEncoder
+allows one pass to be split across multiple encoders and threads...)
+
+command endcoder [for given command buffer and render pass]
+  - pipeline state x1 [reusable, for given device and render pipeline]
+  - depth/stencil states... [reusable]
+  - (vertex) buffers... [reusable]
+  - textures... [reusable]
+
    |#
 
-  
-(defclass mtk-context () ; TODO 2025-08-16 03:22:06 learn how this changes in complex scenesn
-  ((pipeline-state :accessor pipeline-state)
+(defclass mtk-context ()
+  ((device :accessor device)
+   (render-pipeline :accessor render-pipeline
+                    :initform (mtk::make-render-pipeline-descriptor))
+   (pipeline-state :accessor pipeline-state)
+   (vertex-descriptor :accessor vertex-descriptor
+                      :initform (mtk::make-vertex-descriptor))
+   (vertex-buffers :accessor vertex-buffers
+                   ;; use vector-push-extend
+                   :initform (make-array 0 :adjustable t :fill-pointer t))
+   (textures :accessor textures
+             :initform (make-array 0 :adjustable t :fill-pointer t))
+   ;; TODO 2025-08-17 15:57:46 depth stencils, other buffers once understand...
    (command-queue :accessor command-queue))
   (:documentation
    "In-development way of storing all required context such as pipelines,
 vertex arrays etc. Could promote to `view.lisp` if ever becomes
 general-purpose."))
 
-(defparameter *vertex-data*
-  (make-array '(9) :element-type 'single-float
-                                       :initial-contents '( 0.0  1.0  0.0
-                                                           -1.0 -1.0  0.0
-                                                           1.0 -1.0  0.0)))
+(defclass buffer-handle () ; maybe track storage mode?
+  ((pointer :accessor pointer :initform nil)
+   (count :accessor count)
+   (padded-element-size :accessor padded-element-size)))
 
-(defparameter bytes-per-float 4)
+(defmethod size ((self buffer-handle))
+  (* (count self) (padded-element-size self)))
+
+(defmethod initialize-instance :after ((self buffer-handle) &key context)
+  "Add new buffer handle to (vertex-buffers context) and configure vertex descriptors."
+  ;; TODO 2025-08-17 22:35:02 generalise to handle textures etc as well
+  (setf (pointer self)
+        (protect
+         (mtk::buffer-contents
+          (protect
+           ;; NB 2025-08-17 21:51:28 curious about when this is freed
+           ;; ...need autorelease?
+           (mtk::new-buffer (device context) (size self))
+           "Failed to allocate buffer."))
+         "Failed to access buffer contents. Check storage mode?"))
+  (let* ((index (vector-push-extend self (vertex-buffers context)))
+         (pd (render-pipeline context))
+         (vd (vertex-descriptor context)))
+    (mtk::set-vertex-descriptor-attribute
+     vd index mtk:+vertex-format-float3+ 0 0)
+    (mtk::set-vertex-descriptor-layout
+     vd index (padded-element-size self) 1 mtk:+vertex-step-function-per-vertex+)
+    (mtk::set-vertex-descriptor pd vd))) ; assume safe to repeat with same vd?
+
+(defmethod fill-vertex-buffer ((self mtk-context) index floats)
+  "Set up vertex buffer at index with vector of simple-floats."
+  ;; TODO 2025-08-17 16:27:37 eventually generalise
+  ;; to other numeric types or even cstructs...
+  (let* ((bytes-per-float 4)
+         (handle (elt (vertex-buffers self) index))
+         (buffer-size (size handle)))
+    (assert (= (* (array-total-size floats) bytes-per-float) buffer-size)
+            "Wrong data size.")
+    (dotimes (i (array-total-size floats))
+      (setf (cffi:mem-aref (pointer handle) :float i)
+            (coerce (elt floats i) 'single-float)))
+    ;; TODO didModifyRange for CPU->GPU copy ?
+    ;; later synchronizeResource from GPU->CPU (compute shaders...)
+    ))
 
 (progn
+  ;; for call frequency see https://stackoverflow.com/a/71655894/780743
   (defmethod draw ((self mtk-view))
-    (cffi:with-foreign-object (fvb :float (array-total-size *vertex-data*))
-      ;; TODO 2025-08-16 02:28:20 consider https://www.cliki.net/WAAF-CFFI
-      (dotimes (i (array-total-size *vertex-data*))
-        (setf (cffi:mem-aref fvb :float i) (aref *vertex-data* i)))
-      (let* ((vb (mtk::make-buffer (device self) fvb
-                                   (* bytes-per-float (array-total-size *vertex-data*))))
-             (cb (mtk::get-command-buffer (command-queue (context self))))
-             (rp (mtk::render-pass-descriptor self))
-             (ce (mtk::get-render-command-encoder cb rp))
-             (ps (pipeline-state (context self))))
-        (unwind-protect
-             (progn
-               (mtk::set-render-pipeline-state ce ps)
-               (mtk::set-vertex-buffer ce vb :index 0)
-               (mtk::draw-primitives ce mtk:+primitive-type-triangle+ 0 3))
-          (mtk::end-encoding ce))
-        (mtk::present-drawable cb (mtk::drawable self))
-        (mtk::commit cb))))
+    (let* ((ctx (context self))
+           (vb (elt (vertex-buffers self) 0))
+           (cb (mtk::command-buffer (command-queue ctx)))
+           (rp (mtk::render-pass-descriptor self))
+           (ce (mtk::render-command-encoder cb rp))
+           (ps (pipeline-state ctx)))
+      (unwind-protect
+           (progn
+             (mtk::set-render-pipeline-state ce ps)
+             (mtk::set-vertex-buffer ce vb :index 0)
+             (mtk::draw-primitives ce mtk:+primitive-type-triangle+ 0 3))
+        (mtk::end-encoding ce))
+      (mtk::present-drawable cb (mtk::drawable self))
+      (mtk::commit cb)))
   (display-all))
 
 (with-event-loop (:waitp t)
@@ -114,23 +169,25 @@ general-purpose."))
                              :rect (in-screen-rect (rect 0 1000 720 450))
                              :title "MetalKit demo"))
          (view (make-instance 'mtk-view))
-         (ctx (setf (context view) (make-instance 'mtk-context)))
+         (ctx (setf (context view) (make-instance 'mtk-context :device (device view))))
          ;; TODO 2025-08-16 20:03:21 separate out so shader (pipeline etc?) can be hot reloaded
-         ;; ... and decide on organisation of resources (pipelines, etc) per view
          (shader-source (uiop:read-file-string "example/example.metal")) ; FIXME 2025-08-16 14:47:17 what sets cwd?
          ;; Uncompilable shader would be described in sly-inferior-lisp log from objc until I get lisp impl working.
          ;; Doesn't kill repl/runtime, just Continue.
          (library (mtk::make-library (device view) shader-source))
          (vertex-fn (mtk::make-function library "vertex_main"))
          (fragment-fn (mtk::make-function library "fragment_main"))
-         (pd (mtk::make-render-pipeline-descriptor))
-         (vd (mtk::make-vertex-descriptor)))
+         (pd (render-pipeline ctx)))
     (mtk::set-color-attachment-pixel-format pd 0 mtk::+pixel-format-a8-unorm+)
     (mtk::set-vertex-function pd vertex-fn)
     (mtk::set-fragment-function pd fragment-fn)
-    (mtk::set-vertex-descriptor-attribute vd 0 mtk:+vertex-format-float3+ 0 0)
-    (mtk::set-vertex-descriptor-layout vd 0 (* 3 bytes-per-float) 1 mtk:+vertex-step-function-per-vertex+)
-    (mtk::set-vertex-descriptor pd vd)
+    
+    (make-instance 'buffer-handle :count 9 :padded-element-size 4 :context ctx)
+    (fill-vertex-buffer ctx 0 #( 0.0  1.0  0.0
+                                -1.0 -1.0  0.0
+                                 1.0 -1.0  0.0))
+
+    ;; Do both of these need to be after the other pipeline config has happened?
     (setf (pipeline-state ctx) (mtk::make-render-pipeline-state view pd)
           (command-queue ctx) (mtk::make-command-queue (device view)))
     (setf (content-view win) view)
