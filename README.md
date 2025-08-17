@@ -1,6 +1,6 @@
 # jdf/cocoagain
 
-**Core Graphics** — **Common Lisp** REPL
+**Core Graphics** + **MetalKit** — **Common Lisp** REPL
 
 Read eval graphics loop, take two! In the grand tradition of (but much less sophisticated than):
 
@@ -23,4 +23,5 @@ See `example.lisp`.
 
 ## TODO
 
-Metal view etc.
+- Metal resource management (pipeline, buffers etc)
+- Dynamic controls view, value binding?

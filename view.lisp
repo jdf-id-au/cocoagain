@@ -10,9 +10,7 @@
      (cgl-pixel-format :pointer)
      (width :int) (height :int))
   (let* ((view (gethash id *view-table*)))
-    (setf (cgl-context view) cgl-context
-          (cgl-pixel-format view) cgl-pixel-format
-          (width view) width
+    (setf (width view) width
           (height view) height)
     (handler-case
         (ecase draw-flag
@@ -45,13 +43,13 @@
   ((id :accessor id)
    ;; g-id is monotonically increasing global id (class object shared slot)
    (g-id :initform 0 :accessor g-id :allocation :class)
-   (cgl-context :accessor cgl-context)
-   (cgl-pixel-forat :accessor cgl-pixel-format)
    (width :accessor width)
    (height :accessor height)
    (cocoa-ref :accessor cocoa-ref)))
 
-(defmethod initialize-instance :after ((self base-view) &key)
+(defmethod initialize-instance :after
+    ((self base-view)
+     &key)
   (setf (id self) (g-id self))
   (incf (g-id self))
   (setf (gethash (id self) *view-table*) self))
@@ -105,11 +103,13 @@
               :pointer)))
 
 (defun current-cg-context ()
+  "Returns the current CGContext of the current thread."
   (let* ((graphic-context (objc "NSGraphicsContext" "currentContext" :pointer)))
-    (if (cffi:null-pointer-p graphic-context) graphic-context ; ??
+    (if (cffi:null-pointer-p graphic-context)
+        (error (c) "Failed to get graphics context \"~a\"" c)
         (objc graphic-context "CGContext" :pointer))))
 
-;; ───────────────────────────────────────────────────────── Metal Tool Kit view
+;; ────────────────────────────────────────────────────────────── Metal Kit view
 
 (defclass mtk-view (base-view)
   ((device :accessor device)
@@ -117,7 +117,9 @@
 
 (defmethod reshape ((self mtk-view)) ())
 
-(defmethod initialize-instance :after ((self mtk-view) &key (x 0) (y 0) (w 400) (h 200))
+(defmethod initialize-instance :after
+    ((self mtk-view)
+     &key (x 0) (y 0) (w 400) (h 200))
   (let* ((device (cffi:foreign-funcall "MTLCreateSystemDefaultDevice" :pointer))
          (view (objc (alloc "MetalView") "initWithFrame:device:id:drawFn:eventFn:"
                      (:struct rect) (rect x y w h)

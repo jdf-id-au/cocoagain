@@ -7,6 +7,7 @@
 ;; (redisplay (gethash 0 *view-table*)) ; TODO get `redisplay` working? SIGBUS?
 
 (defun display-all ()
+  "Refresh all views."
   (loop for v being each hash-value in *view-table*
         do (objc v "display")))
 
@@ -37,7 +38,7 @@
   (let* ((win (make-instance 'window
                                 :rect (in-screen-rect (rect 0 1000 720 450))
                                 :title "Core Graphics demo"))
-         (view (make-instance 'view)))
+         (view (make-instance 'view))
     (setf (content-view win) view)
     (window-show win)))
 
@@ -65,26 +66,26 @@ general-purpose."))
       ;; TODO 2025-08-16 02:28:20 consider https://www.cliki.net/WAAF-CFFI
       (dotimes (i (array-total-size *vertex-data*))
         (setf (cffi:mem-aref fvb :float i) (aref *vertex-data* i)))
-      (let* ((vb (mtl::make-buffer (device self) fvb
+      (let* ((vb (mtk::make-buffer (device self) fvb
                                    (* bytes-per-float (array-total-size *vertex-data*))))
-             (cb (mtl::get-command-buffer (command-queue (context self))))
-             (rp (mtl::render-pass-descriptor self))
-             (ce (mtl::get-render-command-encoder cb rp))
+             (cb (mtk::get-command-buffer (command-queue (context self))))
+             (rp (mtk::render-pass-descriptor self))
+             (ce (mtk::get-render-command-encoder cb rp))
              (ps (pipeline-state (context self))))
         (unwind-protect
              (progn
-               (mtl::set-render-pipeline-state ce ps)
-               (mtl::set-vertex-buffer ce vb :index 0)
-               (mtl::draw-primitives ce mtl:+primitive-type-triangle+ 0 3))
-          (mtl::end-encoding ce))
-        (mtl::present-drawable cb (mtl::drawable self))
-        (mtl::commit cb))))
+               (mtk::set-render-pipeline-state ce ps)
+               (mtk::set-vertex-buffer ce vb :index 0)
+               (mtk::draw-primitives ce mtk:+primitive-type-triangle+ 0 3))
+          (mtk::end-encoding ce))
+        (mtk::present-drawable cb (mtk::drawable self))
+        (mtk::commit cb))))
   (display-all))
 
 (with-event-loop (:waitp t)
   (let* ((win (make-instance 'window
                              :rect (in-screen-rect (rect 0 1000 720 450))
-                             :title "Metal Tool Kit demo"))
+                             :title "MetalKit demo"))
          (view (make-instance 'mtk-view))
          (ctx (setf (context view) (make-instance 'mtk-context)))
          ;; TODO 2025-08-16 20:03:21 separate out so shader (pipeline etc?) can be hot reloaded
@@ -92,19 +93,19 @@ general-purpose."))
          (shader-source (uiop:read-file-string "example/example.metal")) ; FIXME 2025-08-16 14:47:17 what sets cwd?
          ;; Uncompilable shader would be described in sly-inferior-lisp log from objc until I get lisp impl working.
          ;; Doesn't kill repl/runtime, just Continue.
-         (library (mtl::make-library (device view) shader-source))
-         (vertex-fn (mtl::make-function library "vertex_main"))
-         (fragment-fn (mtl::make-function library "fragment_main"))
-         (pd (mtl::make-render-pipeline-descriptor))
-         (vd (mtl::make-vertex-descriptor)))
-    (mtl::set-color-attachment-pixel-format pd 0 mtl::+pixel-format-a8-unorm+)
-    (mtl::set-vertex-function pd vertex-fn)
-    (mtl::set-fragment-function pd fragment-fn)
-    (mtl::set-vertex-descriptor-attribute vd 0 mtl:+vertex-format-float3+ 0 0)
-    (mtl::set-vertex-descriptor-layout vd 0 (* 3 bytes-per-float) 1 mtl:+vertex-step-function-per-vertex+)
-    (mtl::set-vertex-descriptor pd vd)
-    (setf (pipeline-state ctx) (mtl::make-render-pipeline-state view pd)
-          (command-queue ctx) (mtl::make-command-queue (device view)))
+         (library (mtk::make-library (device view) shader-source))
+         (vertex-fn (mtk::make-function library "vertex_main"))
+         (fragment-fn (mtk::make-function library "fragment_main"))
+         (pd (mtk::make-render-pipeline-descriptor))
+         (vd (mtk::make-vertex-descriptor)))
+    (mtk::set-color-attachment-pixel-format pd 0 mtk::+pixel-format-a8-unorm+)
+    (mtk::set-vertex-function pd vertex-fn)
+    (mtk::set-fragment-function pd fragment-fn)
+    (mtk::set-vertex-descriptor-attribute vd 0 mtk:+vertex-format-float3+ 0 0)
+    (mtk::set-vertex-descriptor-layout vd 0 (* 3 bytes-per-float) 1 mtk:+vertex-step-function-per-vertex+)
+    (mtk::set-vertex-descriptor pd vd)
+    (setf (pipeline-state ctx) (mtk::make-render-pipeline-state view pd)
+          (command-queue ctx) (mtk::make-command-queue (device view)))
     (setf (content-view win) view)
     (window-show win)))
 

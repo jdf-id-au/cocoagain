@@ -3,7 +3,7 @@
 #import <MetalKit/MetalKit.h>
 
 typedef void(*DrawFn)(int,int,void*,void*,int,int);
-typedef void(*EventFn)(int iID, int type, NSEvent *,
+typedef void(*EventFn)(int iID, int type, NSEvent *e,
                        double locationX, double locationY);
 
 enum {

@@ -29,5 +29,6 @@
    #:add-curve-to-point
    #:stroke-path))
 
-(defpackage :mtl
+(defpackage :metal-kit
+  (:nicknames :mtk)
   (:use cl))

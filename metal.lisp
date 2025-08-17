@@ -1,4 +1,4 @@
-(in-package :mtl)
+(in-package :metal-kit)
 
 ;; ─────────────────────────────────────────────────────────────────────── Types
 
@@ -274,8 +274,8 @@
                  (ns:objc (cffi:mem-ref err :pointer) "localizedDescription")) ; NIL
           p))))
 
-(defun make-render-pipeline-state (view render-pipeline-descriptor)
-  (ns:protect (ns:objc view "deviceRenderPipelineStateWithDescriptor:"
+(defun make-render-pipeline-state (mtk-view render-pipeline-descriptor)
+  (ns:protect (ns:objc mtk-view "deviceRenderPipelineStateWithDescriptor:"
                  :pointer render-pipeline-descriptor
                  :pointer)
            "Failed to create render pipeline state (objc impl)."))
@@ -368,7 +368,7 @@
 (define-constant +index-type-uint16+ 0)
 (define-constant +index-type-uint32+ 1)
 
-(define-constant +resource-cpu-cache-mode-default-cache+ 0) ; ─ resource options
+(define-constant +resource-cpu-cache-mode-default-cache+ 0) ; ╴ resource options
 (define-constant +resource-cpu-cache-mode-write-combined+ 1)
 (define-constant +resource-storage-mode-shared+ 0)
 (define-constant +resource-storage-mode-managed+ 16)
@@ -454,7 +454,7 @@
 (define-constant +pixel-format-rg8-uint+ 33)
 (define-constant +pixel-format-rg8-sint+ 34)
 
-(define-constant +pixel-format-b5g6r5-unorm+ 40) ; ────────────────────── packed
+(define-constant +pixel-format-b5g6r5-unorm+ 40) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ packed
 (define-constant +pixel-format-a1bgr5-unorm+ 41)
 (define-constant +pixel-format-abgr4-unorm+ 42)
 (define-constant +pixel-format-bgr5a1-unorm+ 43)

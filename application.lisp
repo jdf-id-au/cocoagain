@@ -22,7 +22,8 @@
 (cffi:defcallback app-delegate-callback :void ((action :int))
   (case action
     (0 (dolist (hook *startup-hooks*) (funcall hook)))
-    (1 (let* ((windows (objc
+    (1 ; NB 2025-08-17 10:03:15 is this ever called?
+     (let* ((windows (objc
                         (objc "App" "sharedApplication" :pointer)
                         "windows" :pointer)))
          (dotimes (i (objc windows "count" :int))
