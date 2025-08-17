@@ -128,6 +128,7 @@
 (defun set-depth-stencil-state (command-encoder depth-stencil-state)
   (ns:objc command-encoder "setDepthStencilState:" :pointer depth-stencil-state))
 
+;; TODO compare with setVertexBufferOffset:atIndex: !
 (defun set-vertex-buffer (command-encoder buffer &key (offset 0) (index 0))
   (ns:objc command-encoder "setVertexBuffer:offset:atIndex:" :pointer buffer
 							     :int offset
@@ -176,7 +177,7 @@
    (ns:objc library "newFunctionWithName:" :pointer (ns:autorelease (ns:make-ns-string name)) :pointer)
    "Failed to find function: ~a" name))
 
-;; ───────────────────────────────────────────────────────── Pipeline descriptor
+;; ────────────────────────────────────────────────── Render pipeline descriptor
 
 (defun make-render-pipeline-descriptor ()
   (ns:new "MTLRenderPipelineDescriptor"))

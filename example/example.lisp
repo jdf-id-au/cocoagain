@@ -103,6 +103,7 @@ general-purpose."))
 (defclass buffer-handle () ; maybe track storage mode?
   ((pointer :accessor pointer :initform nil)
    (count :accessor count)
+   ;; Compare with mtl:+vertex-format-...+ types?
    (padded-element-size :accessor padded-element-size)))
 
 (defmethod size ((self buffer-handle))
@@ -130,7 +131,6 @@ general-purpose."))
     (mtk::set-vertex-descriptor pd vd))) ; assume safe to repeat with same vd?
 
 (defmethod fill-vertex-buffer ((self mtk-context) index floats)
-  "Set up vertex buffer at index with vector of simple-floats."
   ;; TODO 2025-08-17 16:27:37 eventually generalise
   ;; to other numeric types or even cstructs...
   (let* ((bytes-per-float 4)
@@ -149,7 +149,7 @@ general-purpose."))
   ;; for call frequency see https://stackoverflow.com/a/71655894/780743
   (defmethod draw ((self mtk-view))
     (let* ((ctx (context self))
-           (vb (elt (vertex-buffers self) 0))
+           (vb (pointer (elt (vertex-buffers self) 0))) ; vertex buffers index
            (cb (mtk::command-buffer (command-queue ctx)))
            (rp (mtk::render-pass-descriptor self))
            (ce (mtk::render-command-encoder cb rp))
@@ -157,7 +157,7 @@ general-purpose."))
       (unwind-protect
            (progn
              (mtk::set-render-pipeline-state ce ps)
-             (mtk::set-vertex-buffer ce vb :index 0)
+             (mtk::set-vertex-buffer ce vb :index 0) ; vertex shader arguments index
              (mtk::draw-primitives ce mtk:+primitive-type-triangle+ 0 3))
         (mtk::end-encoding ce))
       (mtk::present-drawable cb (mtk::drawable self))
@@ -182,7 +182,7 @@ general-purpose."))
     (mtk::set-vertex-function pd vertex-fn)
     (mtk::set-fragment-function pd fragment-fn)
     
-    (make-instance 'buffer-handle :count 9 :padded-element-size 4 :context ctx)
+    (make-instance 'buffer-handle :count 3 :padded-element-size (* 4 3) :context ctx)
     (fill-vertex-buffer ctx 0 #( 0.0  1.0  0.0
                                 -1.0 -1.0  0.0
                                  1.0 -1.0  0.0))
