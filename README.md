@@ -5,7 +5,7 @@
 Read eval graphics loop, take two! In the grand tradition of (but much less sophisticated than):
 
 - https://github.com/cbaggers/cepl
-- https://github.com/byulparan/cl-visual ([cl-nextstep](https://github.com/byulparan/cl-nextstep) was the starting point for cocoagain)
+- https://github.com/byulparan/cl-visual ([cl-nextstep](https://github.com/byulparan/cl-nextstep) was the starting point for this project!)
 - https://github.com/digego/extempore
 - https://www.shadertoy.com/
 - https://github.com/oakes/play-cljc

@@ -88,6 +88,8 @@
           near (coerce (viewport-near viewport) 'double-float)
           far (coerce (viewport-far viewport) 'double-float))))
 
+;; ───────────────────────────────────────────────────────────────── Render pass
+
 (defun make-command-queue (device)
   (ns:protect
    (ns:objc device "newCommandQueue" :pointer)
@@ -103,9 +105,9 @@
    (ns:objc mtk-view "currentRenderPassDescriptor" :pointer)
    "Failed to get current pass descriptor."))
 
-(defun get-render-command-encoder (command-buffer descriptor)
+(defun get-render-command-encoder (command-buffer render-pass)
   (ns:protect
-   (ns:objc command-buffer "renderCommandEncoderWithDescriptor:" :pointer descriptor :pointer)
+   (ns:objc command-buffer "renderCommandEncoderWithDescriptor:" :pointer render-pass :pointer)
    "Failed to get render command encoder."))
 
 (defun drawable (mtk-view)
@@ -179,23 +181,23 @@
 (defun make-render-pipeline-descriptor ()
   (ns:new "MTLRenderPipelineDescriptor"))
 
-(defun set-vertex-function (render-pipeline-descriptor function)
-  (ns:objc render-pipeline-descriptor "setVertexFunction:" :pointer function))
+(defun set-vertex-function (pipeline-descriptor function)
+  (ns:objc pipeline-descriptor "setVertexFunction:" :pointer function))
 
-(defun set-fragment-function (render-pipeline-descriptor function)
-  (ns:objc render-pipeline-descriptor "setFragmentFunction:" :pointer function))
+(defun set-fragment-function (pipeline-descriptor function)
+  (ns:objc pipeline-descriptor "setFragmentFunction:" :pointer function))
 
-(defun set-vertex-descriptor (render-pipeline-descriptor vertex-descriptor)
-  (ns:objc render-pipeline-descriptor "setVertexDescriptor:" :pointer vertex-descriptor))
+(defun set-vertex-descriptor (pipeline-descriptor vertex-descriptor)
+  (ns:objc pipeline-descriptor "setVertexDescriptor:" :pointer vertex-descriptor))
 
-(defun set-color-attachment-pixel-format (render-pipeline-descriptor index pixel-format)
+(defun set-color-attachment-pixel-format (pipeline-descriptor index pixel-format)
   (let* ((color-attachment
-	   (ns:objc (ns:objc render-pipeline-descriptor "colorAttachments" :pointer)
+	   (ns:objc (ns:objc pipeline-descriptor "colorAttachments" :pointer)
 		    "objectAtIndexedSubscript:" :int index :pointer)))
     (ns:objc color-attachment "setPixelFormat:" :int pixel-format)))
 
-(defun set-depth-attachment-pixel-format (render-pipeline-descriptor pixel-format)
-  (ns:objc render-pipeline-descriptor "setDepthAttachmentPixelFormat:" :unsigned-int pixel-format))
+(defun set-depth-attachment-pixel-format (pipeline-descriptor pixel-format)
+  (ns:objc pipeline-descriptor "setDepthAttachmentPixelFormat:" :unsigned-int pixel-format))
 
 ;; ─────────────────────────────────────────────────────────── Vertex descriptor
 
@@ -250,7 +252,7 @@
 
 ;; ────────────────────────────────────────────────────────────── Pipeline state
 
-#+nil(defun make-render-pipeline-state (device render-pipeline-descriptor)
+#+nil(defun make-render-pipeline-state (device pipeline-descriptor)
   (cffi:with-foreign-object (err :pointer)
     (let ((e (ns:objc "NSError" "errorWithDomain:code:userInfo:"
                       :string "placeholder"
@@ -259,13 +261,13 @@
       (setf (cffi:mem-ref err :pointer) e))
     (let ((p
             (ns:objc device "newRenderPipelineStateWithDescriptor:error:"
-                     :pointer render-pipeline-descriptor
+                     :pointer pipeline-descriptor
                      :pointer err
                      :pointer)))
       (if (cffi:null-pointer-p p)
           (error "Failed to create render pipeline state.~%~a ~a ~a ~a ~a"
                  device ; seemingly ok
-                 render-pipeline-descriptor ; seemingly ok
+                 pipeline-descriptor ; seemingly ok
                  p ; null
                  err
                  ;; TODO 2025-08-16 09:49:20
@@ -274,9 +276,9 @@
                  (ns:objc (cffi:mem-ref err :pointer) "localizedDescription")) ; NIL
           p))))
 
-(defun make-render-pipeline-state (mtk-view render-pipeline-descriptor)
+(defun make-render-pipeline-state (mtk-view pipeline-descriptor)
   (ns:protect (ns:objc mtk-view "deviceRenderPipelineStateWithDescriptor:"
-                 :pointer render-pipeline-descriptor
+                 :pointer pipeline-descriptor
                  :pointer)
            "Failed to create render pipeline state (objc impl)."))
 

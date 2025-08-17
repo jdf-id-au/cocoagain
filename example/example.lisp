@@ -38,12 +38,39 @@
   (let* ((win (make-instance 'window
                                 :rect (in-screen-rect (rect 0 1000 720 450))
                                 :title "Core Graphics demo"))
-         (view (make-instance 'view))
+         (view (make-instance 'view)))
     (setf (content-view win) view)
     (window-show win)))
 
 ;; ────────────────────────────────────────────────────────────── Metal Tool Kit
 
+  #|
+
+shader library
+  - functions... (e.g. vertex, fragment, ...)
+
+pipeline descriptor
+  - color attachment pixel format
+  - vertex function
+  - fragment function
+  - vertex descriptor
+  - pipeline state
+  - command queue (command buffers...)
+
+vertex descriptor
+  - attributes... (format, offset, index into buffer)
+  - layouts... (stride, step rate, step function)
+
+vertex buffer
+
+pipeline state
+  
+render pass
+  - command encoder
+  
+   |#
+
+  
 (defclass mtk-context () ; TODO 2025-08-16 03:22:06 learn how this changes in complex scenesn
   ((pipeline-state :accessor pipeline-state)
    (command-queue :accessor command-queue))

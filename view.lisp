@@ -106,7 +106,7 @@
   "Returns the current CGContext of the current thread."
   (let* ((graphic-context (objc "NSGraphicsContext" "currentContext" :pointer)))
     (if (cffi:null-pointer-p graphic-context)
-        (error (c) "Failed to get graphics context \"~a\"" c)
+        (error "Failed to get graphics context.")
         (objc graphic-context "CGContext" :pointer))))
 
 ;; ────────────────────────────────────────────────────────────── Metal Kit view

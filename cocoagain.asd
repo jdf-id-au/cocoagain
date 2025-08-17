@@ -3,11 +3,11 @@
 ;; load (vs eval) this i.e. asdf:load-system
 ;; check sly inferior-lisp for ffi hang diagnostics
 
-;; Why is this needed?
-;; (asdf/driver:with-current-directory nil
-;;   (let* ((process-path (concatenate 'string (namestring *default-pathname-defaults*)
-;;                                     "sbcl.app/Contents/MacOS/sbcl")))
-;;     #+sbcl (sb-posix:setenv "CFProcessPath" process-path 1)))
+;; Pretend to be in an .app!
+(asdf/driver:with-current-directory nil
+  (let* ((process-path (concatenate 'string (namestring *default-pathname-defaults*)
+                                    "sbcl.app/Contents/MacOS/sbcl")))
+    #+sbcl (sb-posix:setenv "CFProcessPath" process-path 1)))
 
 (asdf:defsystem :cocoagain
   :depends-on (:alexandria
