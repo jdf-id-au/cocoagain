@@ -13,11 +13,16 @@
    #:with-event-loop
 
    #:window
-   #:view
-   #:current-cg-context
-
    #:content-view
    #:window-show
+   
+   #:view
+   #:current-cg-context
+   #:draw
+   
+   #:mtk-view
+   #:device
+   #:context   
    
    #:point
    #:size
@@ -45,5 +50,7 @@
    #:stroke-path))
 
 (defpackage :metal-kit
+  ;; NB 2025-08-30 05:11:52 mainly ::unexported symbols
+  ;; some direct constant exports, see metal.lisp
   (:nicknames :mtk)
   (:use cl))

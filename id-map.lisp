@@ -20,7 +20,7 @@
         (declare (fixnum i))
         (setf (svref new-vector i) (the fixnum (1+ i)))))
     (setf (id-map-vector id-map) new-vector
-          (id-map-free id-map) old-size)))
+          (id-map-free id-map) old-size))) ; should return old-size
 
 (defun assign-id-map-id (id-map object)
   (if (or (null object) (typep object 'fixnum)) (error "Object must not be fixnum or nil"))

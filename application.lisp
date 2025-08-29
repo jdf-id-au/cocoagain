@@ -39,19 +39,26 @@
 
 (cffi:defcallback app-dispatch-callback :void ((id :pointer))
   (let* ((id (cffi:pointer-address id))
-         ;; Nested let* in cl-nextstep... no reason?
          (task (id-map-free-object *dispatch-id-map* id)))
     (when task
       (handler-case (funcall task)
         (error (c)
-          (break (format nil "Caught signal while dispatching event: \"~a\" for ~a using ~a" c id task)))))))
+          ;; NB 2025-08-30 06:21:05 I think id is passed as a
+          ;; "pointer" but is really an index into *dispatch-id-map*'s
+          ;; vector, so value 0 may be legitimate.
+
+          ;; If the thunk has a programming error, it only seems to be
+          ;; identified at funcall, not eval. Should be able to [CONTINUE],
+          ;; because there's actually no scary null pointer.
+          (break (format nil "Caught signal while dispatching event: \"~a\"~%for ~a using ~a.~%Try continuing." c id task)))))))
 
 (defun queue-for-event-loop (thunk)
   (let* ((id (assign-id-map-id *dispatch-id-map* thunk)))
     (cffi:foreign-funcall "dispatch_async_f"
-                          :pointer (cffi:foreign-symbol-pointer "_dispatch_main_q")
-                          :pointer (cffi:make-pointer id)
-                          :pointer (cffi:callback app-dispatch-callback))))
+                          :pointer (cffi:foreign-symbol-pointer "_dispatch_main_q") ; queue
+                          :pointer (cffi:make-pointer id) ; context
+                          :pointer (cffi:callback app-dispatch-callback) ; work
+                          )))
 
 (defmacro with-event-loop ((&key (waitp nil)) &body body)
   (alexandria:with-gensyms (result semaphore id)
@@ -63,9 +70,10 @@
                                 (lambda () (setf ,result (progn ,@body))))))
                      (cffi:foreign-funcall
                       "dispatch_sync_f"
-                      :pointer (cffi:foreign-symbol-pointer "_dispatch_main_q")
-                      :pointer (cffi:make-pointer ,id)
-                      :pointer (cffi:callback app-dispatch-callback))
+                      :pointer (cffi:foreign-symbol-pointer "_dispatch_main_q") ; queue
+                      :pointer (cffi:make-pointer ,id) ; context
+                      :pointer (cffi:callback app-dispatch-callback) ; work
+                      )
                      ,result))
            (t (queue-for-event-loop (lambda () ,@body))))))
 

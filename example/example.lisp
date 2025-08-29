@@ -83,7 +83,7 @@ command endcoder [for given command buffer and render pass]
    |#
 
 (defclass mtk-context () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Context assistance
-  ((device :accessor device)
+  ((device :initarg :device :accessor device)
    (render-pipeline :accessor render-pipeline
                     :initform (mtk::make-render-pipeline-descriptor))
    (pipeline-state :accessor pipeline-state)
@@ -103,20 +103,20 @@ general-purpose."))
 
 (defclass buffer-handle () ; maybe track storage mode? ╴╴╴╴╴╴╴╴╴╴╴ Vertex buffer
   ((pointer :accessor pointer :initform nil)
-   (count :accessor count)
+   (count :initarg :count :accessor element-count)
    ;; Compare with mtl:+vertex-format-...+ types?
-   (padded-element-size :accessor padded-element-size)))
+   (padded-element-size :initarg :padded-element-size :accessor padded-element-size)))
 
 (defmethod size ((self buffer-handle))
-  (* (els self) (padded-element-size self)))
+  (* (element-count self) (padded-element-size self)))
 
 (defmethod initialize-instance :after ((self buffer-handle) &key context)
   "Add new buffer handle to (vertex-buffers context) and configure vertex descriptors."
   ;; TODO 2025-08-17 22:35:02 generalise to handle textures etc as well
   (setf (pointer self)
-        (protect
+        (ns:protect
          (mtk::buffer-contents
-          (protect
+          (ns:protect
            ;; NB 2025-08-17 21:51:28 curious about when this is freed
            ;; ...need autorelease?
            (mtk::new-buffer (device context) (size self))
@@ -148,9 +148,9 @@ general-purpose."))
 
 (progn ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Draw
   ;; for call frequency see https://stackoverflow.com/a/71655894/780743
-  (defmethod draw ((self mtk-view))
-    (let* ((ctx (context self))
-           (vb (pointer (elt (vertex-buffers self) 0))) ; vertex buffers index
+  (defmethod draw ((self ns:mtk-view))
+    (let* ((ctx (ns:context self))
+           (vb (pointer (elt (vertex-buffers ctx) 0))) ; vertex buffers index
            (cb (mtk::command-buffer (command-queue ctx)))
            (rp (mtk::render-pass-descriptor self))
            (ce (mtk::render-command-encoder cb rp))
@@ -165,21 +165,21 @@ general-purpose."))
       (mtk::commit cb)))
   (display-all))
 
-(with-event-loop (:waitp t) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Event loop
-  (let* ((win (make-instance 'window
-                             :rect (in-screen-rect (rect 0 1000 720 450))
+(ns:with-event-loop (:waitp t) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Event loop
+  (let* ((win (make-instance 'ns:window
+                             :rect (ns:in-screen-rect (ns:rect 0 1000 720 450))
                              :title "MetalKit demo"))
-         (view (make-instance 'mtk-view))
-         (ctx (setf (context view) (make-instance 'mtk-context :device (device view))))
+         (view (make-instance 'ns:mtk-view))
+         (ctx (setf (ns:context view) (make-instance 'mtk-context :device (ns:device view))))
          ;; TODO 2025-08-16 20:03:21 separate out so shader (pipeline etc?) can be hot reloaded
          (shader-source (uiop:read-file-string "example/example.metal")) ; FIXME 2025-08-16 14:47:17 what sets cwd?
          ;; Uncompilable shader would be described in sly-inferior-lisp log from objc until I get lisp impl working.
          ;; Doesn't kill repl/runtime, just Continue.
-         (library (mtk::make-library (device view) shader-source))
+         (library (mtk::make-library (ns:device view) shader-source))
          (vertex-fn (mtk::make-function library "vertex_main"))
          (fragment-fn (mtk::make-function library "fragment_main"))
          (pd (render-pipeline ctx)))
-    (mtk::set-color-attachment-pixel-format pd 0 mtk::+pixel-format-a8-unorm+)
+    (mtk::set-color-attachment-pixel-format pd 0 mtk:+pixel-format-a8-unorm+)
     (mtk::set-vertex-function pd vertex-fn)
     (mtk::set-fragment-function pd fragment-fn)
     
@@ -190,9 +190,9 @@ general-purpose."))
 
     ;; Do both of these need to be after the other pipeline config has happened?
     (setf (pipeline-state ctx) (mtk::make-render-pipeline-state view pd)
-          (command-queue ctx) (mtk::make-command-queue (device view)))
-    (setf (content-view win) view)
-    (window-show win)))
+          (command-queue ctx) (mtk::make-command-queue (ns:device view)))
+    (setf (ns:content-view win) view)
+    (ns:window-show win)))
 
 #+nil(progn ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Events
        (defun scale-cursor (loc dim)
