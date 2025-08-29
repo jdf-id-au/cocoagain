@@ -8,10 +8,25 @@
    #:new
    #:autorelease
    #:cf-release
+   
+   #:start-event-loop
    #:with-event-loop
+
+   #:window
+   #:view
+   #:current-cg-context
+
+   #:content-view
+   #:window-show
+   
    #:point
    #:size
    #:rect
+
+   #:width
+   #:height
+   #:in-screen-rect
+   
    #:make-ns-string
    #:cf-string-to-lisp))
 

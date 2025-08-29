@@ -206,7 +206,7 @@
   (ns:new "MTLVertexDescriptor")) ; TODO 2025-08-16 01:45:11 cleanup after?
 
 (defun set-vertex-descriptor-attribute (vertex-descriptor index format offset buffer-index)
-  (assert (<= 0 index 31) "Index out of range") ; Metal-Feature-Set-Tables.pdf
+  (assert (<= 0 index 31) nil "Index out of range") ; Metal-Feature-Set-Tables.pdf
   (let* ((attribute (ns:objc (ns:objc vertex-descriptor "attributes" :pointer)
                              "objectAtIndexedSubscript:" :int index :pointer)))
     ;; The format of the vertex attribute.

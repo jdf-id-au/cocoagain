@@ -114,7 +114,7 @@
          :pointer (autorelease (make-ns-string reason))
          :pointer)))
 
-(defun prevent-appnap ()
+(defun prevent-appnap () ; TODO  2025-08-18 21:41:56 not called; check sleep recovery too
   (set-process-activity
    (logior +NSActivityUserInitiated+ +NSActivityLatencyCritical+)
    "Live feels"))

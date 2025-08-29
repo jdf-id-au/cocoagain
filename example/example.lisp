@@ -1,26 +1,27 @@
 ;; C-c C-l sly-load-file cocoagain.asd
 (ql:quickload :cocoagain)
 
-(in-package :cocoagain)
+(defpackage :cocoagain-example (:use cl) (:import-from :cocoagain objc))
+(in-package :cocoagain-example)
 
 ;; (maphash #'(lambda (k v) (format t "~S ~S~%" k v)) *view-table*)
 ;; (redisplay (gethash 0 *view-table*)) ; TODO get `redisplay` working? SIGBUS?
 
 (defun display-all ()
   "Refresh all views."
-  (loop for v being each hash-value in *view-table*
+  (loop for v being each hash-value in ns::*view-table*
         do (objc v "display")))
 
-(start-event-loop)
+(ns:start-event-loop)
 
 ;; ─────────────────────────────────────────────────────────────── Core Graphics
 
 (progn
-  (defmethod draw ((self view))
-    (let* ((ctx (current-cg-context))
-           (w (width self))
-           (h (height self))
-           (r (rect 0 0 w h)))
+  (defmethod ns:draw ((self ns:view))
+    (let* ((ctx (ns:current-cg-context))
+           (w (ns:width self))
+           (h (ns:height self))
+           (r (ns:rect 0 0 w h)))
       ;;(format t "bounds ~a~%" (cg:display-bounds 0))
       (cg:set-rgb-fill-color ctx (random 1.0) (random 1.0) (random 1.0))
       (cg:fill-rect ctx r)
@@ -34,13 +35,13 @@
       (cg:stroke-path ctx)))
   (display-all))
 
-(with-event-loop (:waitp t)
-  (let* ((win (make-instance 'window
-                                :rect (in-screen-rect (rect 0 1000 720 450))
+(ns:with-event-loop (:waitp t)
+  (let* ((win (make-instance 'ns:window
+                                :rect (ns:in-screen-rect (ns:rect 0 1000 720 450))
                                 :title "Core Graphics demo"))
-         (view (make-instance 'view)))
-    (setf (content-view win) view)
-    (window-show win)))
+         (view (make-instance 'ns:view)))
+    (setf (ns:content-view win) view)
+    (ns:window-show win)))
 
 ;; ─────────────────────────────────────────────────────────────────── Metal Kit
 
@@ -81,7 +82,7 @@ command endcoder [for given command buffer and render pass]
 
    |#
 
-(defclass mtk-context ()
+(defclass mtk-context () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Context assistance
   ((device :accessor device)
    (render-pipeline :accessor render-pipeline
                     :initform (mtk::make-render-pipeline-descriptor))
@@ -100,14 +101,14 @@ command endcoder [for given command buffer and render pass]
 vertex arrays etc. Could promote to `view.lisp` if ever becomes
 general-purpose."))
 
-(defclass buffer-handle () ; maybe track storage mode?
+(defclass buffer-handle () ; maybe track storage mode? ╴╴╴╴╴╴╴╴╴╴╴ Vertex buffer
   ((pointer :accessor pointer :initform nil)
    (count :accessor count)
    ;; Compare with mtl:+vertex-format-...+ types?
    (padded-element-size :accessor padded-element-size)))
 
 (defmethod size ((self buffer-handle))
-  (* (count self) (padded-element-size self)))
+  (* (els self) (padded-element-size self)))
 
 (defmethod initialize-instance :after ((self buffer-handle) &key context)
   "Add new buffer handle to (vertex-buffers context) and configure vertex descriptors."
@@ -137,7 +138,7 @@ general-purpose."))
          (handle (elt (vertex-buffers self) index))
          (buffer-size (size handle)))
     (assert (= (* (array-total-size floats) bytes-per-float) buffer-size)
-            "Wrong data size.")
+            nil "Wrong data size.")
     (dotimes (i (array-total-size floats))
       (setf (cffi:mem-aref (pointer handle) :float i)
             (coerce (elt floats i) 'single-float)))
@@ -145,7 +146,7 @@ general-purpose."))
     ;; later synchronizeResource from GPU->CPU (compute shaders...)
     ))
 
-(progn
+(progn ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Draw
   ;; for call frequency see https://stackoverflow.com/a/71655894/780743
   (defmethod draw ((self mtk-view))
     (let* ((ctx (context self))
@@ -164,7 +165,7 @@ general-purpose."))
       (mtk::commit cb)))
   (display-all))
 
-(with-event-loop (:waitp t)
+(with-event-loop (:waitp t) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Event loop
   (let* ((win (make-instance 'window
                              :rect (in-screen-rect (rect 0 1000 720 450))
                              :title "MetalKit demo"))
@@ -193,7 +194,7 @@ general-purpose."))
     (setf (content-view win) view)
     (window-show win)))
 
-#+nil(progn
+#+nil(progn ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Events
        (defun scale-cursor (loc dim)
          "Scale cursor to [-1,1]" ; could DISASSEMBLE and optimise...
          (coerce (1- (* (/ loc dim) 2)) 'single-float))
