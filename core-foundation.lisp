@@ -49,6 +49,8 @@
                                  ,@rest)
            (cffi:mem-ref ,result '(:struct ,return-type)))))))
 
+
+;; TODO 2025-08-30 11:33:03 overlaps a bit with above checks; use it there?
 (defmacro protect (form &rest message)
   "Evaluate form and raise error if it's nil or a cffi null pointer."
   `(let ((pointer ,form))

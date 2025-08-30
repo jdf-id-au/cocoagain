@@ -2,6 +2,8 @@
 
 (defvar *view-table* (make-hash-table))
 ;; (clrhash *view-table*)
+;; (maphash #'(lambda (k v) (format t "~S ~S~%" k v)) *view-table*)
+;; (redisplay (gethash 0 *view-table*)) ; TODO get `redisplay` working? SIGBUS?
 
 (cffi:defcallback view-draw-callback :void
     ((id :int)

@@ -4,9 +4,6 @@
 (defpackage :cocoagain-example (:use cl))
 (in-package :cocoagain-example)
 
-;; (maphash #'(lambda (k v) (format t "~S ~S~%" k v)) *view-table*)
-;; (redisplay (gethash 0 *view-table*)) ; TODO get `redisplay` working? SIGBUS?
-
 (defun display-all ()
   "Refresh all views."
   (loop for v being each hash-value in ns::*view-table*
@@ -151,15 +148,10 @@ general-purpose."))
       (setf (cffi:mem-aref (contents handle) :float i)
             (coerce (elt floats i) 'single-float)))
     ;; (dotimes (i (array-total-size floats)) (format t "~a " (cffi:mem-aref (contents handle) :float i)))
-    (format t "About to call didModifyRange ~a~%" (pointer handle))
+    ;;(format t "About to call didModifyRange ~a~%" (pointer handle))
     ;; for CPU->GPU copy when managed memory:
-    ;; FIXME 2025-08-30 10:59:45 oopsie need to pass buffer not contents!
     (ns:objc handle "didModifyRange:" (:struct ns:range) range)
-    #+nil(ns:objc "MetalView" "in:at:didModify:"
-             :pointer (pointer handle)
-             :int 0
-             :int buffer-size)
-    (format t "Lived to tell the tale.~%")
+    ;;(format t "Lived to tell the tale.~%")
     ;; later synchronizeResource from GPU->CPU (compute shaders...)
     ))
 
@@ -167,6 +159,7 @@ general-purpose."))
   ;; for call frequency see https://stackoverflow.com/a/71655894/780743
   (defmethod ns:draw ((self ns:mtk-view))
     (let* ((ctx (ns:context self))
+           ;; TODO 2025-08-30 11:29:14 could automate translation of pointer?
            (vb (pointer (elt (vertex-buffers ctx) 0))) ; vertex buffers index
            (cb (mtk::command-buffer (command-queue ctx)))
            (rp (mtk::render-pass-descriptor self))
@@ -228,9 +221,16 @@ general-purpose."))
          "Scale cursor to [-1,1]" ; could DISASSEMBLE and optimise...
          (coerce (1- (* (/ loc dim) 2)) 'single-float))
 
-       (defmethod mouse-moved ((self base-view) event location-x location-y)
-         ;;(format t "~a ~a ~%" location-x location-y)
-         (setf (aref *vertex-data* 0) (scale-cursor location-x (width self))
-               (aref *vertex-data* 1) (scale-cursor location-y (height self)))))
+       ;; TODO 2025-08-30 11:27:15 double check clos method calling
+       (defmethod ns::mouse-moved ((self ns:mtk-view) event location-x location-y)
+         (let* ((x (scale-cursor location-x (ns:width self)))
+                (y (scale-cursor location-y (ns:height self)))
+                ;; NB reader macro for vector #() seemed to quote contents
+                (v (vector x y 0.0
+                     -1.0 -1.0 0.0
+                     (- x) (- y) 0.0)))
+           (fill-vertex-buffer (ns:context self) 0 v))
+         )
+       )
 
 #+nil(uiop/os:getcwd) ; depends on from which buffer sly was started
