@@ -179,8 +179,8 @@
 
 ;; ────────────────────────────────────────────────── Render pipeline descriptor
 
-(defun make-render-pipeline-descriptor (label)
-  (ns:objc (ns:new "MTLRenderPipelineDescriptor") "setLabel:" label))
+(defun make-render-pipeline-descriptor ()
+  (ns:new "MTLRenderPipelineDescriptor"))
 
 (defun set-vertex-function (pipeline-descriptor function)
   (ns:objc pipeline-descriptor "setVertexFunction:" :pointer function))
@@ -281,7 +281,7 @@
 (defun make-render-pipeline-state (mtk-view pipeline-descriptor)
   "Workaround, implemented in objc. Only uses view to get at device."
   (ns:protect (ns:objc mtk-view "deviceRenderPipelineStateWithDescriptor:"
-                 :pointer pipeline-descriptor
+                       :pointer pipeline-descriptor
                  :pointer)
            "Failed to create render pipeline state (objc impl)."))
 

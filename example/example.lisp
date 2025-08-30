@@ -41,13 +41,41 @@
     (ns:window-show win)))
 
 ;; ─────────────────────────────────────────────────────────────────── Metal Kit
-(defclass mtk-context () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Context assistance
-  ((device :initarg :device :accessor device)
-   (render-pipeline :accessor render-pipeline
-                    :initform (mtk::make-render-pipeline-descriptor))
-   (pipeline-state :accessor pipeline-state)
+
+(defclass render-pipeline () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Pipeline
+  ((cocoa-ref :reader ns::cocoa-ref :initform (mtk::make-render-pipeline-descriptor))
+   (label :reader label :initarg :label) ; init-only
    (vertex-descriptor :accessor vertex-descriptor
                       :initform (mtk::make-vertex-descriptor))
+   (%states :accessor %states :initform (make-hash-table))))
+
+;; TODO 2025-08-30 17:23:02 once understood https://cffi.common-lisp.dev/manual/html_node/Tutorial_002dTypes.html
+;;(defmethod cffi:translate-to-foreign (pipeline (type render-pipeline)) (ns::cocoa-ref self))
+
+(defmethod initialize-instance :after ((self render-pipeline)
+                                       ;; avoid circular init, might be another way
+                                       &key table)
+  "Make pipeline-label the primary identifier (beyond debugging-convenience intent)."
+  (let* ((pipeline-label (label self)))
+    ;; TODO 2025-08-30 16:02:26 clarify string lifetime/copying (needs make-ns-string)
+    (ns:objc self "setLabel:" :pointer (ns:make-ns-string (symbol-name pipeline-label)))
+    (when (gethash pipeline-label table)
+      ;; TODO 2025-08-30 16:38:13 deal with old pipeline & states... might race?
+      (warn "Not properly cleaning up old ~a pipeline and states." pipeline-label))
+    (setf (gethash pipeline-label table) self)) ; manky non-factorable syntax)
+
+(defmethod pipeline-state ((self render-pipeline) (view ns:mtk-view))
+  ;; TODO 2025-08-30 15:20:02 maybe more efficient/non-allocating key fn...?
+  (let* ((key (cons (ns::id view) (label self)))
+         (cache (%states self))
+         (cached (gethash key cache)))
+    (if cached cached
+        (setf (gethash key cache)
+              (mtk::make-render-pipeline-state view (ns::cocoa-ref self))))))
+
+(defclass mtk-context () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Context manager
+  ((view :initarg :view :accessor view)
+   (%render-pipelines :accessor %render-pipelines :initform (make-hash-table))
    (vertex-buffers :accessor vertex-buffers
                    ;; use vector-push-extend
                    :initform (make-array 0 :adjustable t :fill-pointer t))
@@ -60,14 +88,24 @@
 vertex arrays etc. Could promote to `view.lisp` if ever becomes
 general-purpose."))
 
+(defmethod ns:device ((self mtk-context))
+  (ns:device (view self)))
+
+(defmethod initialize-instance :after ((self mtk-context) &key (pipeline-label :default))
+  (make-instance 'render-pipeline :label pipeline-label
+                                  :table (%render-pipelines self))
+  (setf (command-queue self) (mtk::make-command-queue (ns:device self))))
+
+(defmethod render-pipeline ((self mtk-context) &optional (pipeline-label :default))
+  (gethash pipeline-label (%render-pipelines self)))
+
+;; TODO (defmethod (setf render-pipeline) ...)
+
 (defclass buffer-handle () ; maybe track storage mode? ╴╴╴╴╴╴╴╴╴╴╴ Vertex buffer
-  ((pointer :accessor pointer :initform nil :documentation "Pointer to MTLBuffer")
+  ((cocoa-ref :accessor ns::cocoa-ref :initform nil :documentation "Pointer to MTLBuffer")
    (count :initarg :count :accessor element-count)
    ;; Compare with mtl:+vertex-format-...+ types?
    (padded-element-size :initarg :padded-element-size :accessor padded-element-size)))
-
-(defmethod ns::cocoa-ref ((self buffer-handle))
-  (pointer self))
 
 (defmethod size ((self buffer-handle))
   (* (element-count self) (padded-element-size self)))
@@ -79,17 +117,17 @@ general-purpose."))
 (defmethod initialize-instance :after ((self buffer-handle) &key context)
   "Add new buffer handle to (vertex-buffers context) and configure vertex descriptors."
   ;; TODO 2025-08-17 22:35:02 generalise to handle textures etc as well
-  (setf (pointer self)
+  (setf (ns::cocoa-ref self)
         (ns:protect
          ;; NB 2025-08-17 21:51:28 curious about when this is freed
          ;; ...need autorelease?
          (progn
            ;;(format t "Making new buffer of size ~a.~%" (size self))
-           (mtk::new-buffer (device context) (size self)))
+           (mtk::new-buffer (ns:device context) (size self)))
          "Failed to allocate buffer."))
   (let* ((index (vector-push-extend self (vertex-buffers context)))
-         (pd (render-pipeline context))
-         (vd (vertex-descriptor context)))
+         (pd (render-pipeline context :default))
+         (vd (vertex-descriptor pd)))
     (mtk::set-vertex-descriptor-attribute
      vd index mtk:+vertex-format-float3+ 0 0)
     (mtk::set-vertex-descriptor-layout
@@ -104,15 +142,14 @@ general-purpose."))
   (let* ((bytes-per-float 4)
          (handle (elt (vertex-buffers self) index))
          (buffer-size (size handle))
-         (range (ns:range 0 buffer-size))
-         )
+         (range (ns:range 0 buffer-size)))
     (assert (= (* (array-total-size floats) bytes-per-float) buffer-size)
             nil "Wrong data size.")
     (dotimes (i (array-total-size floats))
       (setf (cffi:mem-aref (contents handle) :float i)
             (coerce (elt floats i) 'single-float)))
     ;; (dotimes (i (array-total-size floats)) (format t "~a " (cffi:mem-aref (contents handle) :float i)))
-    ;;(format t "About to call didModifyRange ~a~%" (pointer handle))
+    ;;(format t "About to call didModifyRange ~a~%" (ns::cocoa-ref handle))
     ;; for CPU->GPU copy when managed memory:
     (ns:objc handle "didModifyRange:" (:struct ns:range) range)
     ;;(format t "Lived to tell the tale.~%")
@@ -124,11 +161,12 @@ general-purpose."))
   (defmethod ns:draw ((self ns:mtk-view))
     (let* ((ctx (ns:context self))
            ;; TODO 2025-08-30 11:29:14 could automate translation of pointer?
-           (vb (pointer (elt (vertex-buffers ctx) 0))) ; vertex buffers index
+           (vb (ns::cocoa-ref (elt (vertex-buffers ctx) 0))) ; vertex buffers index
            (cb (mtk::command-buffer (command-queue ctx)))
            (rp (mtk::render-pass-descriptor self))
            (ce (mtk::render-command-encoder cb rp))
-           (ps (pipeline-state ctx)))
+           (pd (render-pipeline ctx :default))
+           (ps (pipeline-state pd self))) ; TODO 2025-08-30 17:34:29 debug/carry changes
       (unwind-protect
            (progn
              ;;(format t "Setting render pipeline state.~%")     
@@ -153,15 +191,16 @@ general-purpose."))
                              :rect (ns:in-screen-rect (ns:rect 0 1000 720 450))
                              :title "MetalKit demo"))
          (view (make-instance 'ns:mtk-view))
-         (ctx (setf (ns:context view) (make-instance 'mtk-context :device (ns:device view))))
+         (ctx (setf (ns:context view) (make-instance 'mtk-context :view view)))
          ;; TODO 2025-08-16 20:03:21 separate out so shader (pipeline etc?) can be hot reloaded
          (shader-source (uiop:read-file-string "example/example.metal"))
          ;; Uncompilable shader would be described in sly-inferior-lisp log from objc until I get lisp impl working.
          ;; Doesn't kill repl/runtime, just Continue.
+         ;; TODO 2025-08-30 18:59:00 fold library etc into render-pipeline
          (library (mtk::make-library (ns:device view) shader-source))
-         (vertex-fn (mtk::make-function library "vertex_main"))
+         (vertex-fn (mtk::make-function library "vertex_main")) ; TODO 2025-08-30 17:50:21 move to render-pipeline obj
          (fragment-fn (mtk::make-function library "fragment_main"))
-         (pd (render-pipeline ctx)))
+         (pd (render-pipeline ctx :default)))
     (mtk::set-color-attachment-pixel-format pd 0 mtk:+pixel-format-a8-unorm+)
     (mtk::set-vertex-function pd vertex-fn)
     (mtk::set-fragment-function pd fragment-fn)
@@ -171,9 +210,6 @@ general-purpose."))
                                 -1.0 -1.0  0.0
                                  1.0 -1.0  0.0))
 
-    ;; Do both of these need to be after the other pipeline config has happened?
-    (setf (pipeline-state ctx) (mtk::make-render-pipeline-state view pd)
-          (command-queue ctx) (mtk::make-command-queue (ns:device view)))
     (setf (ns:content-view win) view)
     (ns:window-show win)))
 
@@ -190,8 +226,7 @@ general-purpose."))
                 (v (vector x y 0.0
                      -1.0 -1.0 0.0
                      (- x) (- y) 0.0)))
-           (fill-vertex-buffer (ns:context self) 0 v))
-         )
+           (fill-vertex-buffer (ns:context self) 0 v)))
        )
 
 #+nil(uiop/os:getcwd) ; depends on from which buffer sly was started

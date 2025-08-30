@@ -105,13 +105,14 @@ EVENT_TRACKING_METHODS
   mDrawFn(self.id, DRAW, NULL, NULL, view.bounds.size.width, view.bounds.size.height);
 }
 /// NB 2025-08-16 10:47:11 workaround, couldn't get cffi version working
--(id<MTLRenderPipelineState>) deviceRenderPipelineStateWithDescriptor: (MTLRenderPipelineDescriptor *) d {
+- (id<MTLRenderPipelineState>)deviceRenderPipelineStateWithDescriptor:
+    (MTLRenderPipelineDescriptor *)d {
   id e = [NSError errorWithDomain: @"dummy"
                                code: 0
                            userInfo: nil]; // only because can't alloc by interface
-  id p = [self.device newRenderPipelineStateWithDescriptor: d
-                                                     error: &e];
-  if (p) return p;
+  id<MTLRenderPipelineState> p = [self.device newRenderPipelineStateWithDescriptor: d
+                                                                             error: &e];
+  if (p) return p; // its label is readonly
   NSLog(@"Failed to create render pipeline state in objc: %@", [e localizedDescription]);
   return nil;
 }

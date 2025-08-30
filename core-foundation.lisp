@@ -88,7 +88,7 @@
 
 (defun make-ns-string (string)
   (cffi:with-foreign-strings ((s string))
-    (objc (objc "NSString" "alloc" :pointer)
+    (objc (alloc "NSString") ; TODO 2025-08-30 14:43:26 lifecycle?
           "initWithUTF8String:" :pointer s :pointer)))
 
 (defun ns-string-to-lisp (ns-string)
@@ -101,7 +101,7 @@
                         :int 134217984 ; NSUTF8StringEncoding
                         :pointer))
 
-(defun cf-string-to-lisp (cf-string)
+(defun cf-string-to-lisp (cf-string) ; NB 2025-08-30 14:43:50 impl?
   (let* ((len (1+ (* 3 (cffi:foreign-funcall "CFStringGetLength"
                                              :pointer cf-string
                                              :int)))))

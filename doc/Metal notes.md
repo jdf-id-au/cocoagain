@@ -37,7 +37,7 @@ command buffers if multithreaded. (MTLParallelRenderCommandEncoder
 allows one pass to be split across multiple encoders and threads...)
 
 command encoder, *for given command buffer and render pass, and pipeline state*
-  - pipeline state x1, *reusable, for given device and render pipeline*
+  - pipeline state .  *reusable, for given device and render pipeline*
   - depth/stencil states... *reusable*
   - (vertex) buffers... *reusable*
   - textures... *reusable*
@@ -54,5 +54,5 @@ One pipeline state for each combination?
 		  *Only one command encoder active at a time for command buffer (unless parallel).*
 
 Scenes requiring multiple shaders would therefore have:
-- 1 pipeline state per shader combination
+- 1 pipeline state (and therefore pipeline) per shader combination
 - ≥1 command encoder per pipeline state

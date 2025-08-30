@@ -1,5 +1,6 @@
 (in-package :cocoagain)
 
+;; TODO 2025-08-30 15:00:05 document this... (from byulparan)
 (defstruct id-map
   (vector (make-array 1 :initial-element nil))
   (free 0)
