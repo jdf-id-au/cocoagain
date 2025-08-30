@@ -17,7 +17,7 @@
   return self;
 }
 -(void) timerHandle: (NSTimer*) timer {
-  mTimerFn(mID);
+  mTimerFn(mID, clock_gettime_nsec_np(CLOCK_REALTIME));
 }
 -(void) invalidate {
   [mTimer invalidate];

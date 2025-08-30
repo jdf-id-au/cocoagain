@@ -1,4 +1,5 @@
 ;; C-c C-l sly-load-file cocoagain.asd
+;; FIXME 2025-08-30 20:12:29 ?floating point error when evaling ql + too much?
 (ql:quickload :cocoagain)
 
 (defpackage :cocoagain-example (:use cl))
@@ -62,7 +63,8 @@
     (when (gethash pipeline-label table)
       ;; TODO 2025-08-30 16:38:13 deal with old pipeline & states... might race?
       (warn "Not properly cleaning up old ~a pipeline and states." pipeline-label))
-    (setf (gethash pipeline-label table) self)) ; manky non-factorable syntax)
+    (setf (gethash pipeline-label table) self)) ; manky non-factorable syntax
+  )
 
 (defmethod pipeline-state ((self render-pipeline) (view ns:mtk-view))
   ;; TODO 2025-08-30 15:20:02 maybe more efficient/non-allocating key fn...?
@@ -101,7 +103,8 @@ general-purpose."))
 
 ;; TODO (defmethod (setf render-pipeline) ...)
 
-(defclass buffer-handle () ; maybe track storage mode? ╴╴╴╴╴╴╴╴╴╴╴ Vertex buffer
+(defclass buffer-handle () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Vertex buffer
+  ;; TODO 2025-08-30 20:02:24 track storage mode
   ((cocoa-ref :accessor ns::cocoa-ref :initform nil :documentation "Pointer to MTLBuffer")
    (count :initarg :count :accessor element-count)
    ;; Compare with mtl:+vertex-format-...+ types?
@@ -186,6 +189,9 @@ general-purpose."))
       ))
   (display-all))
 
+(defun tick (nanos)
+  #+nil(format t "~a nanos" nanos))
+
 (ns:with-event-loop (:waitp t) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Event loop
   (let* ((win (make-instance 'ns:window
                              :rect (ns:in-screen-rect (ns:rect 0 1000 720 450))
@@ -200,7 +206,8 @@ general-purpose."))
          (library (mtk::make-library (ns:device view) shader-source))
          (vertex-fn (mtk::make-function library "vertex_main")) ; TODO 2025-08-30 17:50:21 move to render-pipeline obj
          (fragment-fn (mtk::make-function library "fragment_main"))
-         (pd (render-pipeline ctx :default)))
+         (pd (render-pipeline ctx :default))
+         (ti (make-instance 'ns:timer :timer-fn #'tick)))
     (mtk::set-color-attachment-pixel-format pd 0 mtk:+pixel-format-a8-unorm+)
     (mtk::set-vertex-function pd vertex-fn)
     (mtk::set-fragment-function pd fragment-fn)
@@ -208,7 +215,7 @@ general-purpose."))
     (make-instance 'buffer-handle :count 3 :padded-element-size (* 4 3) :context ctx)
     (fill-vertex-buffer ctx 0 #( 0.0  1.0  0.0
                                 -1.0 -1.0  0.0
-                                 1.0 -1.0  0.0))
+                                1.0 -1.0  0.0))
 
     (setf (ns:content-view win) view)
     (ns:window-show win)))
@@ -227,6 +234,10 @@ general-purpose."))
                      -1.0 -1.0 0.0
                      (- x) (- y) 0.0)))
            (fill-vertex-buffer (ns:context self) 0 v)))
+
+       ;; TODO 2025-08-30 20:09:03 remove-method?
+       (defmethod ns::mouse-moved ((self ns::mtk-view) event location-x location-y)
+         (declare (ignorable event location-x location-y)))
        )
 
 #+nil(uiop/os:getcwd) ; depends on from which buffer sly was started

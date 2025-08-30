@@ -34,7 +34,9 @@
    #:in-screen-rect
    
    #:make-ns-string
-   #:cf-string-to-lisp))
+   #:cf-string-to-lisp
+
+   #:timer))
 
 (defpackage :core-graphics
   (:nicknames :cg)

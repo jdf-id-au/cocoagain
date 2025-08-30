@@ -197,9 +197,9 @@
 
 (defvar *timer-table* (make-hash-table))
 
-(cffi:defcallback timer-callback :void ((id :int))
+(cffi:defcallback timer-callback :void ((id :int) (nanos :unsigned-long-long))
   (let* ((timer (gethash id *timer-table*)))
-    (funcall (timer-fn timer))))
+    (funcall (timer-fn timer) nanos)))
 
 (defclass timer ()
   ((id :accessor id)
@@ -215,11 +215,14 @@
   (setf (gethash (id self) *timer-table*) self)
   (setf (cocoa-ref self) (autorelease
                           (objc (alloc "Timer")
-                                "initWithID:timenFn:timerInterval:"
+                                "initWithID:timerFn:timerInterval:"
                                 :int (id self)
                                 :pointer (cffi:callback timer-callback)
                                 :double (float interval 1.0d0)
                                 :pointer))))
 
-(defun invalidate (timer)
-  (objc timer "invalidate")) ; FIXME 2025-08-15 22:40:32 remhash id *timer-table*
+(defmethod invalidate (self timer)
+  (objc self "invalidate")
+  (remhash (id self) *timer-table*))
+
+#+nil((invalidate (gethash 0 *timer-table*)))
