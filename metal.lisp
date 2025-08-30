@@ -179,8 +179,8 @@
 
 ;; ────────────────────────────────────────────────── Render pipeline descriptor
 
-(defun make-render-pipeline-descriptor ()
-  (ns:new "MTLRenderPipelineDescriptor"))
+(defun make-render-pipeline-descriptor (label)
+  (ns:objc (ns:new "MTLRenderPipelineDescriptor") "setLabel:" label))
 
 (defun set-vertex-function (pipeline-descriptor function)
   (ns:objc pipeline-descriptor "setVertexFunction:" :pointer function))

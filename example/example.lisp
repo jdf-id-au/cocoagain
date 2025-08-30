@@ -41,44 +41,6 @@
     (ns:window-show win)))
 
 ;; ─────────────────────────────────────────────────────────────────── Metal Kit
-
-  #| https://developer.apple.com/library/archive/documentation/Miscellaneous/Conceptual/MetalProgrammingGuide/Cmd-Submiss/Cmd-Submiss.html
-
-(NB Metal 4 is Apple Silicon only... this isn't 4)
-
-shader library [reusable]
-  - functions... (e.g. vertex, fragment, ...)
-
-render pipeline x1
-  - color attachments... (format)
-  - depth attachment (format)
-  - vertex function x1
-  - fragment function x1
-  - vertex descriptor x1
-  - command queue x1
-
-vertex descriptor x1
-  - attributes... (format, offset, index into buffer)
-  - layouts... (stride, step rate, step function)
-
-command queue x1 [reusable, generally thread-safe]
-  - command buffers... [transient, autoreleased]
-    - command encoders... [transient, autoreleased, one at a time per command buffer]
-    -> present drawable
-    -> commit
-
-Normally whole frame is rendered using one command buffer. Multiple
-command buffers if multithreaded. (MTLParallelRenderCommandEncoder
-allows one pass to be split across multiple encoders and threads...)
-
-command endcoder [for given command buffer and render pass]
-  - pipeline state x1 [reusable, for given device and render pipeline]
-  - depth/stencil states... [reusable]
-  - (vertex) buffers... [reusable]
-  - textures... [reusable]
-
-   |#
-
 (defclass mtk-context () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Context assistance
   ((device :initarg :device :accessor device)
    (render-pipeline :accessor render-pipeline
@@ -137,6 +99,8 @@ general-purpose."))
 (defmethod fill-vertex-buffer ((self mtk-context) index floats)
   ;; TODO 2025-08-17 16:27:37 eventually generalise
   ;; to other numeric types or even cstructs...
+  ;; and maybe update-subrange for big buffers with small updates...
+  ;; and maybe accommodate shared buffers on arm64...
   (let* ((bytes-per-float 4)
          (handle (elt (vertex-buffers self) index))
          (buffer-size (size handle))
@@ -169,9 +133,6 @@ general-purpose."))
            (progn
              ;;(format t "Setting render pipeline state.~%")     
              (mtk::set-render-pipeline-state ce ps)
-             #+nil(format t "Setting vertex buffer ~a ~a.~%" ; seems ok...
-                     vb
-                     (vertex-buffers ctx))
              (mtk::set-vertex-buffer ce vb :index 0) ; vertex shader arguments index
              ;;(format t "Drawing primitives.~%")
              (mtk::draw-primitives ce mtk:+primitive-type-triangle+ 0 3)
@@ -194,7 +155,7 @@ general-purpose."))
          (view (make-instance 'ns:mtk-view))
          (ctx (setf (ns:context view) (make-instance 'mtk-context :device (ns:device view))))
          ;; TODO 2025-08-16 20:03:21 separate out so shader (pipeline etc?) can be hot reloaded
-         (shader-source (uiop:read-file-string "example/example.metal")) ; FIXME 2025-08-16 14:47:17 what sets cwd?
+         (shader-source (uiop:read-file-string "example/example.metal"))
          ;; Uncompilable shader would be described in sly-inferior-lisp log from objc until I get lisp impl working.
          ;; Doesn't kill repl/runtime, just Continue.
          (library (mtk::make-library (ns:device view) shader-source))
