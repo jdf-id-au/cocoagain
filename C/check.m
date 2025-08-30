@@ -58,19 +58,6 @@ int main(void) {
   [app setWidgetCallback: widgetCb];
   [app setDelegate:app];
 
-  // ────────────────────────────────────────────────────────────── Metal buffer
-  id device = MTLCreateSystemDefaultDevice();
-  id<MTLBuffer> buf = [device newBufferWithLength: 36
-                                          options: MTLResourceStorageModeManaged];
-  float *cont = [buf contents];
-  for (int i = 0; i < 9; i++) cont[i] = (float)i;
-  
-  NSLog(@"float is %lu bytes", sizeof(float));
-  NSRange range = NSMakeRange(0, 36);
-  struct fakeNSRange fake_range = (struct fakeNSRange){0, 36};
-  //[buf didModifyRange: range];
-  [buf didModifyRange: *(NSRange *)&fake_range];
-  [MetalView in:buf at: 0 didModify: 36];
   // ─────────────────────────────────────────────────────────────────── logging
   //NSLog(@"About to run");
   // ───────────────────────────────────────────────────────── message with bool
