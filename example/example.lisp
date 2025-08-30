@@ -189,9 +189,6 @@ general-purpose."))
       ))
   (display-all))
 
-(defun tick (nanos)
-  #+nil(format t "~a nanos" nanos))
-
 (ns:with-event-loop (:waitp t) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Event loop
   (let* ((win (make-instance 'ns:window
                              :rect (ns:in-screen-rect (ns:rect 0 1000 720 450))
@@ -206,8 +203,7 @@ general-purpose."))
          (library (mtk::make-library (ns:device view) shader-source))
          (vertex-fn (mtk::make-function library "vertex_main")) ; TODO 2025-08-30 17:50:21 move to render-pipeline obj
          (fragment-fn (mtk::make-function library "fragment_main"))
-         (pd (render-pipeline ctx :default))
-         (ti (make-instance 'ns:timer :timer-fn #'tick)))
+         (pd (render-pipeline ctx :default)))
     (mtk::set-color-attachment-pixel-format pd 0 mtk:+pixel-format-a8-unorm+)
     (mtk::set-vertex-function pd vertex-fn)
     (mtk::set-fragment-function pd fragment-fn)
@@ -217,6 +213,15 @@ general-purpose."))
                                 -1.0 -1.0  0.0
                                 1.0 -1.0  0.0))
 
+    (make-instance 'ns:timer :interval 0.0166 :timer-fn
+                   (lambda (seconds)
+                     (fill-vertex-buffer
+                                    ctx 0
+                                    (vector 
+                                     0.0  1.0  0.0
+                                     (sin seconds) -1.0  0.0
+                                     1.0 -1.0  0.0))))
+    
     (setf (ns:content-view win) view)
     (ns:window-show win)))
 

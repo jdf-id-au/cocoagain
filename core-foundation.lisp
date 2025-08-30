@@ -189,17 +189,11 @@
               height (coerce (rect-height rect) 'double-float))))))
 
 ;; ─────────────────────────────────────────────────────────────────────── Timer
-
-(cffi:defcfun ("make_timer" %make-timer) :pointer
-  (id :int)
-  (timer-fn :pointer)
-  (interval :double))
-
 (defvar *timer-table* (make-hash-table))
 
-(cffi:defcallback timer-callback :void ((id :int) (nanos :unsigned-long-long))
+(cffi:defcallback timer-callback :void ((id :int) (seconds :double))
   (let* ((timer (gethash id *timer-table*)))
-    (funcall (timer-fn timer) nanos)))
+    (funcall (timer-fn timer) seconds)))
 
 (defclass timer ()
   ((id :accessor id)
@@ -221,8 +215,10 @@
                                 :double (float interval 1.0d0)
                                 :pointer))))
 
-(defmethod invalidate (self timer)
-  (objc self "invalidate")
+(defmethod invalidate ((self timer))
+  ;; "Must send from thread on which timer was installed"
+  (ns::queue-for-event-loop (lambda () (objc self "invalidate")))
   (remhash (id self) *timer-table*))
 
-#+nil((invalidate (gethash 0 *timer-table*)))
+;; (invalidate (gethash 0 *timer-table*))
+;; (maphash (lambda (k v) (invalidate v)) *timer-table*)

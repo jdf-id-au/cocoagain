@@ -1,7 +1,7 @@
 #import <Cocoa/Cocoa.h>
 #include <time.h>
 
-typedef void (*TimerFn)(int id, uint64_t nanos);
+typedef void (*TimerFn)(int id, double seconds);
 
 @interface Timer: NSObject {
   int mID;
