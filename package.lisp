@@ -23,7 +23,8 @@
    #:mtk-view
    #:device
    #:context   
-   
+
+   #:range
    #:point
    #:size
    #:rect

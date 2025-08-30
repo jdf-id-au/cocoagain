@@ -1,7 +1,7 @@
 ;; C-c C-l sly-load-file cocoagain.asd
 (ql:quickload :cocoagain)
 
-(defpackage :cocoagain-example (:use cl) (:import-from :cocoagain objc))
+(defpackage :cocoagain-example (:use cl))
 (in-package :cocoagain-example)
 
 ;; (maphash #'(lambda (k v) (format t "~S ~S~%" k v)) *view-table*)
@@ -10,7 +10,7 @@
 (defun display-all ()
   "Refresh all views."
   (loop for v being each hash-value in ns::*view-table*
-        do (objc v "display")))
+        do (ns:objc v "display")))
 
 (ns:start-event-loop)
 
@@ -102,26 +102,32 @@ vertex arrays etc. Could promote to `view.lisp` if ever becomes
 general-purpose."))
 
 (defclass buffer-handle () ; maybe track storage mode? ╴╴╴╴╴╴╴╴╴╴╴ Vertex buffer
-  ((pointer :accessor pointer :initform nil)
+  ((pointer :accessor pointer :initform nil :documentation "Pointer to MTLBuffer")
    (count :initarg :count :accessor element-count)
    ;; Compare with mtl:+vertex-format-...+ types?
    (padded-element-size :initarg :padded-element-size :accessor padded-element-size)))
 
+(defmethod ns::cocoa-ref ((self buffer-handle))
+  (pointer buffer-handle))
+
 (defmethod size ((self buffer-handle))
   (* (element-count self) (padded-element-size self)))
+
+(defmethod contents ((self buffer-handle))
+  (ns:protect (mtk::buffer-contents self)
+              "Failed to access buffer contents. Check storage mode?"))
 
 (defmethod initialize-instance :after ((self buffer-handle) &key context)
   "Add new buffer handle to (vertex-buffers context) and configure vertex descriptors."
   ;; TODO 2025-08-17 22:35:02 generalise to handle textures etc as well
   (setf (pointer self)
         (ns:protect
-         (mtk::buffer-contents
-          (ns:protect
-           ;; NB 2025-08-17 21:51:28 curious about when this is freed
-           ;; ...need autorelease?
-           (mtk::new-buffer (device context) (size self))
-           "Failed to allocate buffer."))
-         "Failed to access buffer contents. Check storage mode?"))
+         ;; NB 2025-08-17 21:51:28 curious about when this is freed
+         ;; ...need autorelease?
+         (progn
+           ;;(format t "Making new buffer of size ~a.~%" (size self))
+           (mtk::new-buffer (device context) (size self)))
+         "Failed to allocate buffer."))
   (let* ((index (vector-push-extend self (vertex-buffers context)))
          (pd (render-pipeline context))
          (vd (vertex-descriptor context)))
@@ -136,19 +142,30 @@ general-purpose."))
   ;; to other numeric types or even cstructs...
   (let* ((bytes-per-float 4)
          (handle (elt (vertex-buffers self) index))
-         (buffer-size (size handle)))
+         (buffer-size (size handle))
+         ;;(range (ns:range 0 buffer-size))
+         )
     (assert (= (* (array-total-size floats) bytes-per-float) buffer-size)
             nil "Wrong data size.")
     (dotimes (i (array-total-size floats))
-      (setf (cffi:mem-aref (pointer handle) :float i)
+      (setf (cffi:mem-aref (contents handle) :float i)
             (coerce (elt floats i) 'single-float)))
-    ;; TODO didModifyRange for CPU->GPU copy ?
+    ;; (dotimes (i (array-total-size floats)) (format t "~a " (cffi:mem-aref (contents handle) :float i)))
+    (format t "About to call didModifyRange ~a~%" (pointer handle))
+    ;; for CPU->GPU copy when managed memory:
+    ;; FIXME 2025-08-30 10:59:45 oopsie need to pass buffer not contents!
+    (ns:objc handle "didModifyRange:" (:struct ns:range) range)
+    #+nil(ns:objc "MetalView" "in:at:didModify:"
+             :pointer (pointer handle)
+             :int 0
+             :int buffer-size)
+    (format t "Lived to tell the tale.~%")
     ;; later synchronizeResource from GPU->CPU (compute shaders...)
     ))
 
 (progn ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Draw
   ;; for call frequency see https://stackoverflow.com/a/71655894/780743
-  (defmethod draw ((self ns:mtk-view))
+  (defmethod ns:draw ((self ns:mtk-view))
     (let* ((ctx (ns:context self))
            (vb (pointer (elt (vertex-buffers ctx) 0))) ; vertex buffers index
            (cb (mtk::command-buffer (command-queue ctx)))
@@ -157,12 +174,23 @@ general-purpose."))
            (ps (pipeline-state ctx)))
       (unwind-protect
            (progn
+             (format t "Setting render pipeline state.~%")     
              (mtk::set-render-pipeline-state ce ps)
+             (format t "Setting vertex buffer ~a ~a.~%" ; seems ok...
+                     vb
+                     (vertex-buffers ctx))
              (mtk::set-vertex-buffer ce vb :index 0) ; vertex shader arguments index
-             (mtk::draw-primitives ce mtk:+primitive-type-triangle+ 0 3))
+             (format t "Drawing primitives.~%")
+             (mtk::draw-primitives ce mtk:+primitive-type-triangle+ 0 3)
+             (format t "Ok.~%"))
+        (format t "About to end encoding.~%")
         (mtk::end-encoding ce))
+      (format t "About to present drawable.~%")
       (mtk::present-drawable cb (mtk::drawable self))
-      (mtk::commit cb)))
+      (format t "About to commit.~%")
+      (mtk::commit cb)
+      (format t "Committed.~%")
+      ))
   (display-all))
 
 (ns:with-event-loop (:waitp t) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Event loop
@@ -193,6 +221,31 @@ general-purpose."))
           (command-queue ctx) (mtk::make-command-queue (ns:device view)))
     (setf (ns:content-view win) view)
     (ns:window-show win)))
+
+#+nil(:debug 2 1 ; ▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚
+        ("Unhandled memory fault at #x20." "   [Condition of type SB-SYS:MEMORY-FAULT-ERROR]" nil)
+        (("ABORT" "Exit debugger, returning to top level."))
+        ((0 "(\"bogus stack frame\")")
+         (1 "(\"foreign function: -[MTLResourceList releaseAllObjectsAndReset]\")")
+         (2 "(\"foreign function: MTLIOAccelCommandBufferStorageReset\")")
+         (3 "(\"foreign function: MTLIOAccelCommandBufferStorageDealloc\")")
+         (4 "(\"foreign function: -[MTLIOAccelCommandBuffer dealloc]\")")
+         (5 "(\"foreign function: -[GFX9AMD_MtlCmdBuffer dealloc]\")")
+         (6 "(\"foreign function: -[GFX9_MtlCmdBuffer dealloc]\")")
+         (7 "(\"foreign function: _ZN19AutoreleasePoolPage12releaseUntilEPP11objc_object\")")
+         (8 "(\"foreign function: objc_autoreleasePoolPop\")")
+         (9 "(\"foreign function: -[MTKView draw]\")")
+         (10 "(\"foreign function: __23-[MTKView __initCommon]_block_invoke\")")
+         (11 "(\"foreign function: _dispatch_client_callout\")")
+         (12 "(\"foreign function: _dispatch_continuation_pop\")")
+         (13 "(\"foreign function: _dispatch_source_invoke\")")
+         (14 "(\"foreign function: _dispatch_main_queue_drain.cold.5\")")
+         (15 "(\"foreign function: _dispatch_main_queue_drain\")")
+         (16 "(\"foreign function: _dispatch_main_queue_callback_4CF\")")
+         (17 "(\"foreign function: __CFRUNLOOP_IS_SERVICING_THE_MAIN_DISPATCH_QUEUE__\")")
+         (18 "(\"foreign function: __CFRunLoopRun\")")
+         (19 "(\"foreign function: CFRunLoopRunSpecific\")"))
+        nil)
 
 #+nil(progn ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Events
        (defun scale-cursor (loc dim)

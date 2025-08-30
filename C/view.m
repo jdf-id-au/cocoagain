@@ -104,6 +104,7 @@ EVENT_TRACKING_METHODS
 -(void) drawInMTKView: (MTKView *)view {
   mDrawFn(self.id, DRAW, NULL, NULL, view.bounds.size.width, view.bounds.size.height);
 }
+/// NB 2025-08-16 10:47:11 workaround, couldn't get cffi version working
 -(id<MTLRenderPipelineState>) deviceRenderPipelineStateWithDescriptor: (MTLRenderPipelineDescriptor *) d {
   id e = [NSError errorWithDomain: @"dummy"
                                code: 0
@@ -111,9 +112,17 @@ EVENT_TRACKING_METHODS
   id p = [self.device newRenderPipelineStateWithDescriptor: d
                                                      error: &e];
   if (p) return p;
-  // NB 2025-08-16 10:47:11 this worked where attempted cffi equiv didn't...
   NSLog(@"Failed to create render pipeline state in objc: %@", [e localizedDescription]);
   return nil;
+}
+/// NB 2025-08-30 10:40:30 attempted workaround; found the problem can remove
+ // hammy parameter order to reduce confusion/variation
++ (void)in: (id<MTLBuffer>) buf
+        at:(unsigned long)loc
+ didModify:(unsigned long)len_bytes {
+  NSLog(@"Ok..."); // is this visible in sly-inferior-lisp?
+  NSLog(@"Trying to call didModifyRange for %@", buf);
+  [buf didModifyRange: NSMakeRange(loc, len_bytes)];
 }
 -(void) dealloc {
   mDrawFn(self.id, SHUTDOWN, NULL, NULL, self.bounds.size.width, self.bounds.size.height);

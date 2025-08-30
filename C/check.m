@@ -1,6 +1,7 @@
 // Check the lib etc actually work before struggling in lisp...
 
 #import "application.h"
+#import "view.h"
 
 void delegateCb(int action) {
   NSArray *windows;
@@ -29,6 +30,11 @@ BOOL setError(NSError **errout) {
   return YES;
 }
 
+struct fakeNSRange {
+  unsigned long location;
+  unsigned long length;
+};
+
 int main(void) {
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
   App *app = [App sharedApplication];
@@ -50,7 +56,21 @@ int main(void) {
   [app activateIgnoringOtherApps: YES];
   [app setDelegateCallback: delegateCb];
   [app setWidgetCallback: widgetCb];
-  [app setDelegate: app];
+  [app setDelegate:app];
+
+  // ────────────────────────────────────────────────────────────── Metal buffer
+  id device = MTLCreateSystemDefaultDevice();
+  id<MTLBuffer> buf = [device newBufferWithLength: 36
+                                          options: MTLResourceStorageModeManaged];
+  float *cont = [buf contents];
+  for (int i = 0; i < 9; i++) cont[i] = (float)i;
+  
+  NSLog(@"float is %lu bytes", sizeof(float));
+  NSRange range = NSMakeRange(0, 36);
+  struct fakeNSRange fake_range = (struct fakeNSRange){0, 36};
+  //[buf didModifyRange: range];
+  [buf didModifyRange: *(NSRange *)&fake_range];
+  [MetalView in:buf at: 0 didModify: 36];
   // ─────────────────────────────────────────────────────────────────── logging
   //NSLog(@"About to run");
   // ───────────────────────────────────────────────────────── message with bool
@@ -58,7 +78,7 @@ int main(void) {
   //NSNumber *mmhmm = [NSNumber numberWithBool: yep];
   //NSLog(@"numberWithBool: %@", [mmhmm stringValue]);
   // ──────────────────────────────────────────────────── error as out parameter
-  id err = [NSError errorWithDomain: @"lack of"
+  id err = [NSError errorWithDomain: @"actually there's no"
                                code: 0
                            userInfo: nil];
   NSLog(@"%@", [err localizedDescription]);

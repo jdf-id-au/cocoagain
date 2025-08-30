@@ -37,6 +37,11 @@ enum {
   NSTrackingArea *trackingArea;
 }
 // Workaround for lisp difficulty, see implementation.
--(id<MTLRenderPipelineState>) deviceRenderPipelineStateWithDescriptor: (MTLRenderPipelineDescriptor *) d;
+- (id<MTLRenderPipelineState>)deviceRenderPipelineStateWithDescriptor:
+    (MTLRenderPipelineDescriptor *)d;
+// Workaround
++ (void)in:(id<MTLBuffer>)buf
+        at:(unsigned long)loc
+didModify:(unsigned long)len_bytes;
 @property(readonly, nonatomic) int id;
 @end
