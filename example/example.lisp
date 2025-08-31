@@ -224,8 +224,8 @@ general-purpose."))
          ;; Doesn't kill repl/runtime, just Continue.
          ;; TODO 2025-08-30 18:59:00 fold library etc into render-pipeline
          (library (mtk::make-library (ns:device view) shader-source))
-         (vertex-fn (mtk::make-function library "vertex_main")) ; TODO 2025-08-30 17:50:21 move to render-pipeline obj
-         (fragment-fn (mtk::make-function library "fragment_fill"))
+         (vertex-fn (mtk::make-function library "vertex_ndc")) ; TODO 2025-08-30 17:50:21 move to render-pipeline obj
+         (fragment-fn (mtk::make-function library "fragment_lsd"))
          (pd (render-pipeline ctx :default)))
     (mtk::set-color-attachment-pixel-format pd 0 mtk:+pixel-format-a8-unorm+)
     (mtk::set-vertex-function pd vertex-fn)
