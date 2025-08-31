@@ -69,7 +69,7 @@
 ;; ─────────────────────────────────────────────────────────────────── Metal Kit
 (defclass render-pipeline () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Pipeline
   ((cocoa-ref :reader ns::cocoa-ref :initform (mtk::make-render-pipeline-descriptor))
-   (label :reader label :initarg :label) ; init-only
+   (label :reader label :initarg :label :initform :default) ; init-only
    (vertex-descriptor :accessor vertex-descriptor
                       :initform (mtk::make-vertex-descriptor))
    (%states :accessor %states :initform (make-hash-table))))
@@ -77,17 +77,19 @@
 ;; TODO 2025-08-30 17:23:02 once understood https://cffi.common-lisp.dev/manual/html_node/Tutorial_002dTypes.html
 ;;(defmethod cffi:translate-to-foreign (pipeline (type render-pipeline)) (ns::cocoa-ref self))
 
+;; TODO 2025-08-31 14:46:02 MTL{Compute,MeshRender,TileRender}PipelineDescriptor... similarities...
+
 (defmethod initialize-instance :after
-    ((self render-pipeline) &key table) ; avoid circular init vs passing context
-  "Make pipeline-label the primary identifier (beyond debugging-convenience intent)."
+    ((self render-pipeline) &key library vertex fragment)
   (let* ((pipeline-label (label self)))
-    ;; TODO 2025-08-30 16:02:26 clarify string lifetime/copying (needs make-ns-string)
-    (ns:objc self "setLabel:" :pointer (ns:make-ns-string (symbol-name pipeline-label)))
-    (when (gethash pipeline-label table)
-      ;; TODO 2025-08-30 16:38:13 deal with old pipeline & states... might race?
-      (warn "Not properly cleaning up old ~a pipeline and states." pipeline-label))
-    (setf (gethash pipeline-label table) self)) ; manky non-factorable syntax
-  )
+    ;; TODO 2025-08-30 16:02:26 clarify string lifetime (needs make-ns-string)
+    ;; ...automate passing lisp strings to NSString?
+    (ns:objc self "setLabel:" :pointer
+             (ns:autorelease (ns:make-ns-string (symbol-name pipeline-label))))
+    (if vertex (mtk::set-vertex-function self (mtk::make-function library vertex))
+        (error "Need to set vertex function in render pipeline ~a." pipeline-label))
+    (when fragment
+      (mtk::set-fragment-function self (mtk::make-function library fragment)))))
 
 (defmethod pipeline-state ((self render-pipeline) (view ns:mtk-view))
   ;; TODO 2025-08-30 15:20:02 maybe more efficient/non-allocating key fn...?
@@ -99,15 +101,14 @@
               (mtk::make-render-pipeline-state view (ns::cocoa-ref self))))))
 
 (defclass mtk-context () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Context manager
-  ((view :initarg :view :accessor view)
-   (%render-pipelines :accessor %render-pipelines :initform (make-hash-table))
-   (vertex-buffers :accessor vertex-buffers
+  ((view :initarg :view :reader view) ; pass in to allow more obvious initialisation...
+   (render-pipelines :reader render-pipelines :initform (make-hash-table))
+   (vertex-buffers :reader vertex-buffers
                    ;; use vector-push-extend
                    :initform (make-array 0 :adjustable t :fill-pointer t))
-   (textures :accessor textures
-             :initform (make-array 0 :adjustable t :fill-pointer t))
+   (textures :reader textures :initform (make-array 0 :adjustable t :fill-pointer t))
    ;; TODO 2025-08-17 15:57:46 depth stencils, other buffers once understand...
-   (command-queue :accessor command-queue))
+   (command-queue :accessor command-queue)) ; FIXME 2025-08-31 15:48:44 ideally :reader only
   (:documentation
    "In-development way of storing all required context such as pipelines,
 vertex arrays etc. Could promote to `view.lisp` if ever becomes
@@ -116,15 +117,21 @@ general-purpose."))
 (defmethod ns:device ((self mtk-context))
   (ns:device (view self)))
 
-(defmethod initialize-instance :after ((self mtk-context) &key (pipeline-label :default))
-  (make-instance 'render-pipeline :label pipeline-label
-                                  :table (%render-pipelines self))
+(defmethod initialize-instance :after ((self mtk-context) &key)
+  (setf (ns:context (view self)) self)
   (setf (command-queue self) (mtk::make-command-queue (ns:device self))))
 
-(defmethod render-pipeline ((self mtk-context) &optional (pipeline-label :default))
-  (gethash pipeline-label (%render-pipelines self)))
+(defmethod add-render-pipeline ((self mtk-context) (p render-pipeline))
+  "Add or replace given render pipeline, uniquely by label.
+ Second value indicates if replacing."
+  (let* ((label (label p))
+         (previous (gethash label (render-pipelines self))))
+    ;;(when previous) ; TODO 2025-08-31 15:09:38 destruct harmoniously
+    (setf (gethash label (render-pipelines self)) p) ; manky non-factorable syntax
+    (values p (and previous T))))
 
-;; TODO (defmethod (setf render-pipeline) ...)
+(defmethod render-pipeline ((self mtk-context) &optional (pipeline-label :default))
+  (gethash pipeline-label (render-pipelines self)))
 
 (defclass buffer-handle () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Vertex buffer
   ;; TODO 2025-08-30 20:02:24 track storage mode
@@ -217,20 +224,17 @@ general-purpose."))
                              :rect (ns:in-screen-rect (ns:rect 0 1000 720 450))
                              :title "MetalKit demo"))
          (view (make-instance 'ns:mtk-view))
-         (ctx (setf (ns:context view) (make-instance 'mtk-context :view view)))
+         (ctx (make-instance 'mtk-context :view view))
          ;; TODO 2025-08-16 20:03:21 separate out so shader (pipeline etc?) can be hot reloaded
          (shader-source (uiop:read-file-string "example/example.metal"))
          ;; Uncompilable shader would be described in sly-inferior-lisp log from objc until I get lisp impl working.
          ;; Doesn't kill repl/runtime, just Continue.
-         ;; TODO 2025-08-30 18:59:00 fold library etc into render-pipeline
          (library (mtk::make-library (ns:device view) shader-source))
-         (vertex-fn (mtk::make-function library "vertex_ndc")) ; TODO 2025-08-30 17:50:21 move to render-pipeline obj
-         (fragment-fn (mtk::make-function library "fragment_lsd"))
-         (pd (render-pipeline ctx :default)))
+         (pd (add-render-pipeline
+              ctx (make-instance 'render-pipeline :library library
+                                                  :vertex "vertex_ndc"
+                                                  :fragment "fragment_lsd"))))
     (mtk::set-color-attachment-pixel-format pd 0 mtk:+pixel-format-a8-unorm+)
-    (mtk::set-vertex-function pd vertex-fn)
-    (mtk::set-fragment-function pd fragment-fn)
-    
     (make-instance 'buffer-handle :count 3 :padded-element-size (* 4 3) :context ctx)
     (fill-vertex-buffer ctx 0 #( 0.0  1.0  0.0
                                 -1.0 -1.0  0.0
