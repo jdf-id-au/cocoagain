@@ -15,6 +15,7 @@
   (/ (float (get-internal-real-time)) internal-time-units-per-second))
 
 (ns:start-event-loop)
+
 ;; ─────────────────────────────────────────────────────────────── Core Graphics
 (defstruct draw-ctx randoms timers)
 
@@ -26,7 +27,7 @@
            (w (ns:width self))
            (h (ns:height self))
            (r (ns:rect 0 0 w h))
-           (wobble-max 0.1)) ; displacement
+           (wobble-max 0.05)) ; displacement
       (flet ((wobble (d) ; wobble using time around stable random fractions
                (let ((rand-frac (elt (draw-ctx-randoms dc) (incf re))))
                  (* d (+ (* (sin (* 2 pi (real-time))) wobble-max) ; period of one second
@@ -36,7 +37,7 @@
         (cg:set-rgb-fill-color ctx (wobble 1.0) (wobble 1.0) (wobble 1.0))
         (cg:fill-rect ctx r)
         (cg:set-line-width ctx 10.0)
-        (cg:set-rgb-stroke-color ctx (wobble 1.0) 0 0)
+        (cg:set-rgb-stroke-color ctx (wobble 1.0) (wobble 1.0) (wobble 1.0))
         (cg:move-to-point ctx (wobble w) (wobble h))
         (cg:add-line-to-point ctx (+ w (wobble (- w))) (wobble h))
         (cg:add-curve-to-point ctx (wobble w) (wobble h)
@@ -45,9 +46,11 @@
         (cg:stroke-path ctx))))
   (display-all)) ; redundant refresh when auto-updating...
 
-(defmethod ns::release ((self ns:view))
-  (format t "Controlled destruction of ~a~%" self) ; FIXME 2025-08-31 10:38:50 not running?
-  (mapcar #'ns::invalidate (draw-ctx-timers (ns:context self))))
+(defmethod ns:release ((self ns:view))
+  ;; FIXME 2025-08-31 11:03:41 doesn't always fire in time
+  ;; ...giving "no applicable method for timer-fn when called with nil"
+  (format t "Controlled destruction of ~a~%" self)
+  (mapcar #'ns:invalidate (draw-ctx-timers (ns:context self))))
 
 (ns:with-event-loop (:waitp t)
   (let* ((win (make-instance 'ns:window
@@ -57,9 +60,9 @@
          (dc (make-draw-ctx :randoms randoms :timers nil))
          (view (make-instance 'ns:view :context dc))
          (timer (make-instance 'ns:timer :interval 0.0166 :timer-fn
+                               ;; TODO 2025-08-31 11:31:07 vs setNeedsDisplay ?
                                (lambda (seconds) (ns:objc view "display")))))
     (push timer (draw-ctx-timers dc))
-    ;; TODO 2025-08-31 09:02:51 clarify schedule for drawing; seems on demand
     (setf (ns:content-view win) view)
     (ns:window-show win)))
 
@@ -222,7 +225,7 @@ general-purpose."))
          ;; TODO 2025-08-30 18:59:00 fold library etc into render-pipeline
          (library (mtk::make-library (ns:device view) shader-source))
          (vertex-fn (mtk::make-function library "vertex_main")) ; TODO 2025-08-30 17:50:21 move to render-pipeline obj
-         (fragment-fn (mtk::make-function library "fragment_main"))
+         (fragment-fn (mtk::make-function library "fragment_fill"))
          (pd (render-pipeline ctx :default)))
     (mtk::set-color-attachment-pixel-format pd 0 mtk:+pixel-format-a8-unorm+)
     (mtk::set-vertex-function pd vertex-fn)
@@ -239,7 +242,7 @@ general-purpose."))
                                     ctx 0
                                     (vector 
                                      0.0  1.0  0.0
-                                     (sin (/ seconds 10)) -1.0  0.0
+                                     (sin (/ seconds 2)) -1.0  0.0
                                      1.0 -1.0  0.0))))
     ;; NB 2025-08-31 09:02:51 MTKView defaults to timer-redraw 60fps, alts available
     (setf (ns:content-view win) view)

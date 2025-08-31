@@ -2,10 +2,11 @@
   (:documentation "Closely after byulparan/cl-nextstep etc. Reimplemented for learning.")
   (:nicknames :ns)
   (:use :cl :alexandria)
-  (:export ; ugh tedious to maintain
+  (:export ; ugh tedious to maintain, also see metal direct export technique
    #:protect
    #:objc
    #:new
+   #:release
    #:autorelease
    #:cf-release
    
@@ -36,7 +37,8 @@
    #:make-ns-string
    #:cf-string-to-lisp
 
-   #:timer))
+   #:timer
+   #:invalidate))
 
 (defpackage :core-graphics
   (:nicknames :cg)

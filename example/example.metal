@@ -16,7 +16,7 @@ struct VertexIn {
 
 struct VertexOut {
   float4 position [[position]]; // pixel coordinates! https://stackoverflow.com/a/30832416/780743
-  float4 color; // doesn't need to be US spelling...
+  float4 ndc; // straight through TODO 2025-08-31 12:27:12 really needed?!
 }; 
 
 /* 5.2.3.4 If the return type of a vertex function is not void, it must
@@ -27,7 +27,7 @@ must include an element declared with the [[position]] attribute. */
 vertex VertexOut vertex_main(VertexIn vert [[stage_in]]) {
   return (VertexOut) {
     .position = float4(vert.position, 1),
-    .color = float4((vert.position + 1)/2.0, 1)
+    .ndc = float4(vert.position, 1)
   };
 }
 
@@ -36,5 +36,33 @@ become the per-fragment inputs to a fragment function. The
 [[stage_in]] attribute can assemble the per-fragment inputs. */
 fragment float4 fragment_main(VertexOut in [[stage_in]]) {
   // nice gradient on intel, buggy red on arm64? seems to disregard this return value?
-  return in.color;
+  return float4((in.ndc.xyz + 1)/2, 1);
+}
+
+/*
+  This trangle covers the quad ([-1, +1], [-1, +1]).
+  With origin as . in normalised device coordinates:
+   +-----+ (+3, +1)
+   | . |/
+   |__ + (+1, -1)
+   |  /
+   | /
+   + (-1, -3)
+   Should be clipped before hitting fragment shader?
+   https://stackoverflow.com/a/76506864/780743
+ */
+vertex float4 vertex_fill(uint vid [[vertex_id]]) {
+  float4 pos;
+  pos.x = (vid == 2) ? 3.0 : -1.0;
+  pos.y = (vid == 0) ? -3.0 : 1.0;
+  pos.zw = 1.0;
+  return pos;
+}
+
+fragment float4 fragment_fill(VertexOut in [[stage_in]]) {
+  float4 col;
+  col.rg = abs(sin(in.ndc.xy * M_PI_F * 2));
+  col.b = abs(sin((in.ndc.x + in.ndc.y) * M_PI_F));
+  col.a = 1.0;
+  return col;
 }
