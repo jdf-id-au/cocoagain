@@ -193,6 +193,7 @@
 
 (cffi:defcallback timer-callback :void ((id :int) (seconds :double))
   (let* ((timer (gethash id *timer-table*)))
+    ;; Could use GET-INTERNAL-REAL-TIME etc instead of passing seconds.
     (funcall (timer-fn timer) seconds)))
 
 (defclass timer ()
@@ -201,7 +202,8 @@
    (timer-fn :initarg :timer-fn
              :initform (error "timer-fn should be specified")
              :reader timer-fn)
-   (cocoa-ref :accessor cocoa-ref)))
+   (cocoa-ref :accessor cocoa-ref))
+  (:documentation "Wrapped NSTimer for callen timer-fn at interval seconds."))
 
 (defmethod initialize-instance :after ((self timer) &key (interval 1.0))
   (setf (id self) (g-id self))

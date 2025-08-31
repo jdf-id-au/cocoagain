@@ -47,7 +47,9 @@
    (g-id :initform 0 :accessor g-id :allocation :class)
    (width :accessor width)
    (height :accessor height)
-   (cocoa-ref :accessor cocoa-ref)))
+   (cocoa-ref :accessor cocoa-ref)
+   (context :initarg :context :initform nil :accessor context
+            :documentation "Arbitrary for ns:view, specific for ns:mtk-view")))
 
 (defmethod initialize-instance :after
     ((self base-view)
@@ -86,6 +88,7 @@
                       (ash 1 19)))))
 (defun redisplay (view) ; FIXME 2025-08-16 22:31:21 hangs
   (objc view "setNeedsDisplayInRect:" (:struct rect)
+        ;; NB 2025-08-31 09:23:23 width and height won't be updated...
         (rect 0 0 (width view) (height view))))
 
 ;; ─────────────────────────────────────────────────── Core Graphics (etc) View 
@@ -114,8 +117,7 @@
 ;; ────────────────────────────────────────────────────────────── Metal Kit view
 
 (defclass mtk-view (base-view)
-  ((device :accessor device)
-   (context :accessor context)))
+  ((device :accessor device)))
 
 (defmethod reshape ((self mtk-view)) ())
 
@@ -131,9 +133,9 @@
                      :pointer (cffi:callback view-event-callback)
                      :pointer)))
     (setf (device self) device)
-    (objc view "setDelegate:" :pointer view)
+    (objc view "setDelegate:" :pointer view) ; self!
     (setf (cocoa-ref self) view)
-    (init self)))
+    (init self))) ; TODO 2025-08-31 09:20:36 preferredFramesPerSecond etc, in caller
 
 ;; TODO 2025-08-16 19:10:37 do these belong in metal.lisp?
 (defun color-pixel-format (mtk-view) (objc mtk-view "colorPixelFormat" :int))

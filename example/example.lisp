@@ -10,39 +10,60 @@
   (loop for v being each hash-value in ns::*view-table*
         do (ns:objc v "display")))
 
-(ns:start-event-loop)
+(defun real-time ()
+  "Arbitrary number rising by 1.0 per wall-clock second."
+  (/ (float (get-internal-real-time)) internal-time-units-per-second))
 
+(ns:start-event-loop)
 ;; ─────────────────────────────────────────────────────────────── Core Graphics
+(defstruct draw-ctx randoms timers)
 
 (progn
   (defmethod ns:draw ((self ns:view))
     (let* ((ctx (ns:current-cg-context))
+           (dc (ns:context self))
+           (re 0)
            (w (ns:width self))
            (h (ns:height self))
-           (r (ns:rect 0 0 w h)))
-      ;;(format t "bounds ~a~%" (cg:display-bounds 0))
-      (cg:set-rgb-fill-color ctx (random 1.0) (random 1.0) (random 1.0))
-      (cg:fill-rect ctx r)
-      (cg:set-line-width ctx 10.0)
-      (cg:set-rgb-stroke-color ctx (random 1.0) 0 0)
-      (cg:move-to-point ctx (random w) (random h))
-      (cg:add-line-to-point ctx (random w) (random h))
-      (cg:add-curve-to-point ctx (random w) (random h)
-                             (random w) (random h)
-                             (random w) (random h))
-      (cg:stroke-path ctx)))
-  (display-all))
+           (r (ns:rect 0 0 w h))
+           (wobble-max 0.1)) ; displacement
+      (flet ((wobble (d) ; wobble using time around stable random fractions
+               (let ((rand-frac (elt (draw-ctx-randoms dc) (incf re))))
+                 (* d (+ (* (sin (* 2 pi (real-time))) wobble-max) ; period of one second
+                         (* rand-frac (- 1.0 (* 2 wobble-max))) ; fit don't clamp
+                         wobble-max)))))
+        ;;(format t "bounds ~a~%" (cg:display-bounds 0))
+        (cg:set-rgb-fill-color ctx (wobble 1.0) (wobble 1.0) (wobble 1.0))
+        (cg:fill-rect ctx r)
+        (cg:set-line-width ctx 10.0)
+        (cg:set-rgb-stroke-color ctx (wobble 1.0) 0 0)
+        (cg:move-to-point ctx (wobble w) (wobble h))
+        (cg:add-line-to-point ctx (+ w (wobble (- w))) (wobble h))
+        (cg:add-curve-to-point ctx (wobble w) (wobble h)
+                               (wobble w) (wobble h)
+                               (wobble w) (wobble h))
+        (cg:stroke-path ctx))))
+  (display-all)) ; redundant refresh when auto-updating...
+
+(defmethod ns::release ((self ns:view))
+  (format t "Controlled destruction of ~a~%" self) ; FIXME 2025-08-31 10:38:50 not running?
+  (mapcar #'ns::invalidate (draw-ctx-timers (ns:context self))))
 
 (ns:with-event-loop (:waitp t)
   (let* ((win (make-instance 'ns:window
                                 :rect (ns:in-screen-rect (ns:rect 0 1000 720 450))
                                 :title "Core Graphics demo"))
-         (view (make-instance 'ns:view)))
+         (randoms (coerce (loop for i below 100 collect (random 1.0)) 'vector))
+         (dc (make-draw-ctx :randoms randoms :timers nil))
+         (view (make-instance 'ns:view :context dc))
+         (timer (make-instance 'ns:timer :interval 0.0166 :timer-fn
+                               (lambda (seconds) (ns:objc view "display")))))
+    (push timer (draw-ctx-timers dc))
+    ;; TODO 2025-08-31 09:02:51 clarify schedule for drawing; seems on demand
     (setf (ns:content-view win) view)
     (ns:window-show win)))
 
 ;; ─────────────────────────────────────────────────────────────────── Metal Kit
-
 (defclass render-pipeline () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Pipeline
   ((cocoa-ref :reader ns::cocoa-ref :initform (mtk::make-render-pipeline-descriptor))
    (label :reader label :initarg :label) ; init-only
@@ -53,9 +74,8 @@
 ;; TODO 2025-08-30 17:23:02 once understood https://cffi.common-lisp.dev/manual/html_node/Tutorial_002dTypes.html
 ;;(defmethod cffi:translate-to-foreign (pipeline (type render-pipeline)) (ns::cocoa-ref self))
 
-(defmethod initialize-instance :after ((self render-pipeline)
-                                       ;; avoid circular init, might be another way
-                                       &key table)
+(defmethod initialize-instance :after
+    ((self render-pipeline) &key table) ; avoid circular init vs passing context
   "Make pipeline-label the primary identifier (beyond debugging-convenience intent)."
   (let* ((pipeline-label (label self)))
     ;; TODO 2025-08-30 16:02:26 clarify string lifetime/copying (needs make-ns-string)
@@ -219,9 +239,9 @@ general-purpose."))
                                     ctx 0
                                     (vector 
                                      0.0  1.0  0.0
-                                     (sin seconds) -1.0  0.0
+                                     (sin (/ seconds 10)) -1.0  0.0
                                      1.0 -1.0  0.0))))
-    
+    ;; NB 2025-08-31 09:02:51 MTKView defaults to timer-redraw 60fps, alts available
     (setf (ns:content-view win) view)
     (ns:window-show win)))
 
