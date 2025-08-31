@@ -100,6 +100,32 @@
         (setf (gethash key cache)
               (mtk::make-render-pipeline-state view (ns::cocoa-ref self))))))
 
+(defclass buffer-handle () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Vertex buffer
+  ;; TODO 2025-08-30 20:02:24 track storage mode
+  ((cocoa-ref :accessor ns::cocoa-ref :initform nil :documentation "Pointer to MTLBuffer")
+   (count :initarg :count :accessor element-count)
+   ;; Compare with mtl:+vertex-format-...+ types?
+   (padded-element-size :initarg :padded-element-size :accessor padded-element-size)))
+
+(defmethod size ((self buffer-handle))
+  (* (element-count self) (padded-element-size self)))
+
+(defmethod contents ((self buffer-handle))
+  (ns:protect (mtk::buffer-contents self)
+              "Failed to access buffer contents. Check storage mode?"))
+
+(defmethod initialize-instance :after ((self buffer-handle) &key device)
+  "Add new buffer handle to (vertex-buffers context) and configure vertex descriptors."
+  ;; TODO 2025-08-17 22:35:02 generalise to handle textures etc as well
+  (setf (ns::cocoa-ref self)
+        (ns:protect
+         ;; NB 2025-08-17 21:51:28 curious about when this is freed
+         ;; ...need autorelease?
+         (progn
+           ;;(format t "Making new buffer of size ~a.~%" (size self))
+           (mtk::new-buffer device (size self)))
+         "Failed to allocate buffer.")))
+
 (defclass mtk-context () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Context manager
   ((view :initarg :view :reader view) ; pass in to allow more obvious initialisation...
    (render-pipelines :reader render-pipelines :initform (make-hash-table))
@@ -133,40 +159,23 @@ general-purpose."))
 (defmethod render-pipeline ((self mtk-context) &optional (pipeline-label :default))
   (gethash pipeline-label (render-pipelines self)))
 
-(defclass buffer-handle () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Vertex buffer
-  ;; TODO 2025-08-30 20:02:24 track storage mode
-  ((cocoa-ref :accessor ns::cocoa-ref :initform nil :documentation "Pointer to MTLBuffer")
-   (count :initarg :count :accessor element-count)
-   ;; Compare with mtl:+vertex-format-...+ types?
-   (padded-element-size :initarg :padded-element-size :accessor padded-element-size)))
+(defmethod add-vertex-buffer ((self mtk-context) (b buffer-handle)
+                              &optional pipeline-label)
+  "Add a vertex buffer to context, and optionally set up named render pipeline vertex descriptor."
+  ;; FIXME 2025-08-31 16:42:39 shouldn't be able to add same vb twice
+  ;; ...but could set up two pipelines for it...
+  (let* ((index (vector-push-extend b (vertex-buffers self))))
+    (when pipeline-label
+      (let* ((pd (render-pipeline self pipeline-label))
+             (vd (vertex-descriptor pd)))
+        (mtk::set-vertex-descriptor-attribute
+         vd index mtk:+vertex-format-float3+ 0 0)
+        (mtk::set-vertex-descriptor-layout
+         vd index (padded-element-size b) 1
+         mtk:+vertex-step-function-per-vertex+)
+        (mtk::set-vertex-descriptor pd vd)))))
 
-(defmethod size ((self buffer-handle))
-  (* (element-count self) (padded-element-size self)))
-
-(defmethod contents ((self buffer-handle))
-  (ns:protect (mtk::buffer-contents self)
-              "Failed to access buffer contents. Check storage mode?"))
-
-(defmethod initialize-instance :after ((self buffer-handle) &key context)
-  "Add new buffer handle to (vertex-buffers context) and configure vertex descriptors."
-  ;; TODO 2025-08-17 22:35:02 generalise to handle textures etc as well
-  (setf (ns::cocoa-ref self)
-        (ns:protect
-         ;; NB 2025-08-17 21:51:28 curious about when this is freed
-         ;; ...need autorelease?
-         (progn
-           ;;(format t "Making new buffer of size ~a.~%" (size self))
-           (mtk::new-buffer (ns:device context) (size self)))
-         "Failed to allocate buffer."))
-  (let* ((index (vector-push-extend self (vertex-buffers context)))
-         (pd (render-pipeline context :default))
-         (vd (vertex-descriptor pd)))
-    (mtk::set-vertex-descriptor-attribute
-     vd index mtk:+vertex-format-float3+ 0 0)
-    (mtk::set-vertex-descriptor-layout
-     vd index (padded-element-size self) 1 mtk:+vertex-step-function-per-vertex+)
-    (mtk::set-vertex-descriptor pd vd))) ; assume safe to repeat with same vd?
-
+;; TODO 2025-08-31 16:53:12 does it make best sense to access via context like this
 (defmethod fill-vertex-buffer ((self mtk-context) index floats)
   ;; TODO 2025-08-17 16:27:37 eventually generalise
   ;; to other numeric types or even cstructs...
@@ -233,9 +242,20 @@ general-purpose."))
          (pd (add-render-pipeline
               ctx (make-instance 'render-pipeline :library library
                                                   :vertex "vertex_ndc"
-                                                  :fragment "fragment_lsd"))))
+                                                  :fragment "fragment_lsd")))
+         (vb (add-vertex-buffer
+              ctx (make-instance 'buffer-handle :device (ns:device view) :count 3
+                                 :padded-element-size (* 4 3)))))
     (mtk::set-color-attachment-pixel-format pd 0 mtk:+pixel-format-a8-unorm+)
-    (make-instance 'buffer-handle :count 3 :padded-element-size (* 4 3) :context ctx)
+    (mtk::set-color-attachment-blending-enabled pd 0 T)
+
+    ;; FIXME 2025-08-31 16:57:46 fix refactor which has caused
+
+    ;; 2025-08-31 16:56:21.112 sbcl[78075:9867265] Failed to create
+    ;; render pipeline state in objc: Vertex function has input
+    ;; attributes but no vertex descriptor was set.
+
+    
     (fill-vertex-buffer ctx 0 #( 0.0  1.0  0.0
                                 -1.0 -1.0  0.0
                                 1.0 -1.0  0.0))

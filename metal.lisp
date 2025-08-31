@@ -197,8 +197,20 @@
 		    "objectAtIndexedSubscript:" :int index :pointer)))
     (ns:objc color-attachment "setPixelFormat:" :int pixel-format)))
 
-(defun set-depth-attachment-pixel-format (pipeline-descriptor pixel-format)
-  (ns:objc pipeline-descriptor "setDepthAttachmentPixelFormat:" :unsigned-int pixel-format))
+(defun set-color-attachment-blending-enabled (pipeline-descriptor index state)
+  (let* ((color-attachment
+           (ns:objc (ns:objc pipeline-descriptor "colorAttachments" :pointer)
+                    "objectAtIndexedSubscript:" :int index :pointer)))
+    ;; TODO 2025-08-31 16:26:27 test BOOL passing bullshit
+    (ns:objc color-attachment "setBlendingEnabled:" :char (if state 1 0))))
+
+;; TODO 2025-08-31 16:01:51 blendingEnabled alphaBlendingOperation rgbBlendOperation
+;; ... from MTLRenderPipelineColorAttachmentDescriptor
+
+;; (defun set-depth-attachment-pixel-format (pipeline-descriptor pixel-format)
+;;   (ns:objc pipeline-descriptor "setDepthAttachmentPixelFormat:" :unsigned-int pixel-format))
+
+;; TODO 2025-08-31 16:11:52 stencilAttachmentPixelFormat vs MTKview depthStencilPixelFormat ?
 
 ;; ─────────────────────────────────────────────────────────── Vertex descriptor
 
