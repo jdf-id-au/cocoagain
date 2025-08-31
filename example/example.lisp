@@ -93,11 +93,7 @@
 
 (defmethod pipeline-state ((self render-pipeline) (view ns:mtk-view))
   ;; FIXME 2025-08-31 22:58:37 This will fail if vbs not configured yet. (e.g. draw too early?)
-
-  ;; FIXME 2025-08-31 16:57:46 fix refactor which has caused (sly-inferior-lisp objc logging ftw)
-  ;; 2025-08-31 16:56:21.112 sbcl[78075:9867265] Failed to create
-  ;; render pipeline state in objc: Vertex function has input
-  ;; attributes but no vertex descriptor was set.
+  ;; Should patch through objc workaround of make-render-pipeline-state's error to CL 
 
   ;; TODO 2025-08-30 15:20:02 maybe more efficient/non-allocating key fn...?
   (let* ((key (cons (ns::id view) (label self)))
@@ -105,8 +101,7 @@
          (cached (gethash key cache)))
     (if cached cached
         (progn
-          (format t "About to make pipeline state for ~a in ~a.~%"
-                  (label self) view)
+          ;;(format t "About to make pipeline state for ~a in ~a.~%" (label self) view)
           (setf (gethash key cache)
                 (mtk::make-render-pipeline-state view (ns::cocoa-ref self)))))))
 
@@ -221,7 +216,7 @@ general-purpose."))
            (progn
              ;;(format t "Setting render pipeline state.~%")     
              (mtk::set-render-pipeline-state ce ps)
-             (mtk::set-vertex-buffer ce vb :index 0) ; vertex shader arguments index
+             (mtk::set-vertex-buffer ce vb :argument-index 0)
              ;;(format t "Drawing primitives.~%")
              (mtk::draw-primitives ce mtk:+primitive-type-triangle+ 0 3)
              ;;(format t "Ok.~%")
@@ -283,11 +278,11 @@ general-purpose."))
        (defmethod ns::mouse-moved ((self ns:mtk-view) event location-x location-y)
          (let* ((x (scale-cursor location-x (ns:width self)))
                 (y (scale-cursor location-y (ns:height self)))
-                ;; NB reader macro for vector #() seemed to quote contents
-                (v (vector x y 0.0
-                     -1.0 -1.0 0.0
-                     (- x) (- y) 0.0)))
-           (fill-vertex-buffer (ns:context self) 0 v)))
+                (vb (elt (vertex-buffers (ns:context self)) 0)))
+           ;; NB reader macro for vector #() seemed to quote contents
+           (fill-buffer vb (vector x y 0.0
+                                   -1.0 -1.0 0.0
+                                   (- x) (- y) 0.0))))
 
        ;; TODO 2025-08-30 20:09:03 remove-method?
        (defmethod ns::mouse-moved ((self ns::mtk-view) event location-x location-y)

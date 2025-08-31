@@ -128,16 +128,17 @@
 (defun set-depth-stencil-state (command-encoder depth-stencil-state)
   (ns:objc command-encoder "setDepthStencilState:" :pointer depth-stencil-state))
 
-;; TODO compare with setVertexBufferOffset:atIndex: !
-(defun set-vertex-buffer (command-encoder buffer &key (offset 0) (index 0))
+;; TODO 2025-08-31 23:19:00 compare with setVertexBufferOffset:atIndex: Updates an entry in the vertex shader argument table with a new location within the entry’s current buffer.
+(defun set-vertex-buffer (command-encoder buffer &key (offset 0) (argument-index 0))
   (ns:objc command-encoder "setVertexBuffer:offset:atIndex:" :pointer buffer
-							     :int offset
-							     :int index))
+							     :int offset ; alignment requirements...
+							     :int argument-index))
+;; TODO 2025-08-31 23:19:03 setVertexBuffers:offsets:withRange: low priority
 
-(defun set-fragment-buffer (command-encoder buffer &key (offset 0) (index 0))
+(defun set-fragment-buffer (command-encoder buffer &key (offset 0) (argument-index 0))
   (ns:objc command-encoder "setFragmentBuffer:offset:atIndex:" :pointer buffer
 							       :int offset
-							       :int index))
+							       :int argument-index))
 
 (defun set-fragment-texture (command-encoder texture &key (index 0))
   (ns:objc command-encoder "setFragmentTexture:atIndex:" :pointer texture :int index))
