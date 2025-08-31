@@ -397,6 +397,9 @@
 (define-constant +index-type-uint16+ 0)
 (define-constant +index-type-uint32+ 1)
 
+;; TODO 2025-08-31 22:48:34 check against fiddly expression in:
+;; /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/Metal.framework/Versions/A/Headers/MTLResource.h
+;; NB default doesn't contribute to AND; memoryless is managed+private:
 (define-constant +resource-cpu-cache-mode-default-cache+ 0) ; ╴ resource options
 (define-constant +resource-cpu-cache-mode-write-combined+ 1)
 (define-constant +resource-storage-mode-shared+ 0)

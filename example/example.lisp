@@ -101,28 +101,42 @@
               (mtk::make-render-pipeline-state view (ns::cocoa-ref self))))))
 
 (defclass buffer-handle () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Metal buffer
-  ;; TODO 2025-08-30 20:02:24 track storage mode
   ((cocoa-ref :accessor ns::cocoa-ref :initform nil :documentation "Pointer to MTLBuffer")
-   (count :initarg :count :accessor element-count)
-   ;; Compare with mtl:+vertex-format-...+ types?
-   (padded-element-size :initarg :padded-element-size :accessor padded-element-size)))
-
-(defmethod size ((self buffer-handle))
-  (* (element-count self) (padded-element-size self)))
+   (size :initarg :size :reader size)
+   (mode :initarg :mode :reader mode :initform
+         (+ mtk:+resource-storage-mode-managed+ ; TODO 2025-08-31 22:20:23 differently on +arm64 ?
+            mtk:+resource-cpu-cache-mode-default-cache+)))) ; vs ...write-combined
 
 (defmethod contents ((self buffer-handle))
   (ns:protect (mtk::buffer-contents self)
               "Failed to access buffer contents. Check storage mode?"))
 
 (defmethod initialize-instance :after ((self buffer-handle) &key device)
-  (setf (ns::cocoa-ref self)
+  (setf (ns::cocoa-ref self) ; TODO 2025-08-31 22:13:14 if setf allowed here could make :reader only
         (ns:protect
          ;; FIXME 2025-08-17 21:51:28 curious about when this is freed
          ;; ...need autorelease?
          (progn
            ;;(format t "Making new buffer of size ~a.~%" (size self))
-           (mtk::new-buffer device (size self)))
+           (mtk::new-buffer device (size self) (mode self)))
          "Failed to allocate buffer.")))
+
+(defmethod fill ((self buffer-handle) floats) ; TODO 2025-08-31 22:27:16 other data types!
+  ;; TODO 2025-08-17 16:27:37
+  ;; maybe update-subrange for big buffers with small updates...
+  ;; and maybe accommodate shared buffers on arm64...
+  (let* ((buffer-size (size self))
+         (incoming-size (array-total-size floats)) 
+         (range (ns:range 0 buffer-size)))
+    (assert (= (* incoming-size 4) buffer-size) nil "Wrong data size.")
+    (dotimes (i incoming-size)
+      (setf (cffi:mem-aref (contents handle) :float i)
+            (coerce (elt floats i) 'single-float)))
+    ;; TODO 2025-08-31 22:50:34
+    ;; for CPU->GPU copy when managed memory:
+    (ns:objc self "didModifyRange:" (:struct ns:range) range)
+    ;; later synchronizeResource from GPU->CPU (compute shaders...)
+    ))
 
 (defclass mtk-context () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Context manager
   ((view :initarg :view :reader view) ; pass in to allow more obvious initialisation...
@@ -182,29 +196,6 @@ general-purpose."))
                                        step-rate step-function)
     (mtk::set-vertex-descriptor pd vd)))
 
-;; TODO 2025-08-31 16:53:12 does it make best sense to access via context like this
-(defmethod fill-vertex-buffer ((self mtk-context) index floats)
-  ;; TODO 2025-08-17 16:27:37 eventually generalise
-  ;; to other numeric types or even cstructs...
-  ;; and maybe update-subrange for big buffers with small updates...
-  ;; and maybe accommodate shared buffers on arm64...
-  (let* ((bytes-per-float 4)
-         (handle (elt (vertex-buffers self) index))
-         (buffer-size (size handle))
-         (range (ns:range 0 buffer-size)))
-    (assert (= (* (array-total-size floats) bytes-per-float) buffer-size)
-            nil "Wrong data size.")
-    (dotimes (i (array-total-size floats))
-      (setf (cffi:mem-aref (contents handle) :float i)
-            (coerce (elt floats i) 'single-float)))
-    ;; (dotimes (i (array-total-size floats)) (format t "~a " (cffi:mem-aref (contents handle) :float i)))
-    ;;(format t "About to call didModifyRange ~a~%" (ns::cocoa-ref handle))
-    ;; for CPU->GPU copy when managed memory:
-    (ns:objc handle "didModifyRange:" (:struct ns:range) range)
-    ;;(format t "Lived to tell the tale.~%")
-    ;; later synchronizeResource from GPU->CPU (compute shaders...)
-    ))
-
 (progn ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Draw
   ;; for call frequency see https://stackoverflow.com/a/71655894/780743
   (defmethod ns:draw ((self ns:mtk-view))
@@ -250,10 +241,11 @@ general-purpose."))
               ctx (make-instance 'render-pipeline :library library
                                                   :vertex "vertex_ndc"
                                                   :fragment "fragment_lsd")))
-         (vb (add-vertex-buffer
-              ctx (make-instance 'buffer-handle :device (ns:device view) :count 3
-                                                :padded-element-size (* 4 3))
-              :default)))
+         ;; TODO 2025-08-31 22:28:36 automate a bit!
+         ;; 4 bytes per float, 3 floats per vertex, 3 vertices...
+         (vb (make-instance 'buffer-handle :device (ns:device view) :size (* 4 3 3)))
+         (vb-index (add-vertex-buffer ctx vb)))
+    (configure-vertex-buffer ctx vb-index :stride (* 4 3))
     (mtk::set-color-attachment-pixel-format pd 0 mtk:+pixel-format-a8-unorm+)
     (mtk::set-color-attachment-blending-enabled pd 0 T)
 
@@ -263,19 +255,17 @@ general-purpose."))
     ;; render pipeline state in objc: Vertex function has input
     ;; attributes but no vertex descriptor was set.
 
-    
-    (fill-vertex-buffer ctx 0 #( 0.0  1.0  0.0
-                                -1.0 -1.0  0.0
-                                1.0 -1.0  0.0))
+    (fill vb #( 0.0  1.0  0.0
+               -1.0 -1.0  0.0
+                1.0 -1.0  0.0))
 
     (make-instance 'ns:timer :interval 0.0166 :timer-fn
                    (lambda (seconds)
-                     (fill-vertex-buffer
-                                    ctx 0
-                                    (vector 
-                                     0.0  1.0  0.0
-                                     (sin (/ seconds 2)) -1.0  0.0
-                                     1.0 -1.0  0.0))))
+                     (fill vb (vector 
+                               0.0  1.0  0.0
+                               (sin (/ seconds 2)) -1.0  0.0
+                               1.0 -1.0  0.0))))
+    
     ;; NB 2025-08-31 09:02:51 MTKView defaults to timer-redraw 60fps, alts available
     (setf (ns:content-view win) view)
     (ns:window-show win)))
