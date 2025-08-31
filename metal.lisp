@@ -217,17 +217,18 @@
 (defun make-vertex-descriptor ()
   (ns:new "MTLVertexDescriptor")) ; TODO 2025-08-16 01:45:11 cleanup after?
 
-(defun set-vertex-descriptor-attribute (vertex-descriptor index format offset buffer-index)
+(defun set-vertex-descriptor-attribute (vertex-descriptor buffer-index format
+                                        buffer-offset argument-index)
   (assert (<= 0 index 31) nil "Index out of range") ; Metal-Feature-Set-Tables.pdf
   (let* ((attribute (ns:objc (ns:objc vertex-descriptor "attributes" :pointer)
-                             "objectAtIndexedSubscript:" :int index :pointer)))
+                             "objectAtIndexedSubscript:" :int buffer-index :pointer)))
     ;; The format of the vertex attribute.
     (ns:objc attribute "setFormat:" :int format)
     ;; The location of an attribute in vertex data, determined by the
     ;; byte offset from the start of the vertex data.
-    (ns:objc attribute "setOffset:" :int offset)
+    (ns:objc attribute "setOffset:" :int buffer-offset)
     ;; The index in the argument table for the associated vertex buffer.
-    (ns:objc attribute "setBufferIndex:" :int buffer-index)))
+    (ns:objc attribute "setBufferIndex:" :int argument-index)))
 
 (defun set-vertex-descriptor-layout (vertex-descriptor index stride step-rate step-function)
   (let* ((layout (ns:objc (ns:objc vertex-descriptor "layouts" :pointer)

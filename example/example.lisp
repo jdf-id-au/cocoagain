@@ -100,7 +100,7 @@
         (setf (gethash key cache)
               (mtk::make-render-pipeline-state view (ns::cocoa-ref self))))))
 
-(defclass buffer-handle () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Vertex buffer
+(defclass buffer-handle () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Metal buffer
   ;; TODO 2025-08-30 20:02:24 track storage mode
   ((cocoa-ref :accessor ns::cocoa-ref :initform nil :documentation "Pointer to MTLBuffer")
    (count :initarg :count :accessor element-count)
@@ -115,11 +115,9 @@
               "Failed to access buffer contents. Check storage mode?"))
 
 (defmethod initialize-instance :after ((self buffer-handle) &key device)
-  "Add new buffer handle to (vertex-buffers context) and configure vertex descriptors."
-  ;; TODO 2025-08-17 22:35:02 generalise to handle textures etc as well
   (setf (ns::cocoa-ref self)
         (ns:protect
-         ;; NB 2025-08-17 21:51:28 curious about when this is freed
+         ;; FIXME 2025-08-17 21:51:28 curious about when this is freed
          ;; ...need autorelease?
          (progn
            ;;(format t "Making new buffer of size ~a.~%" (size self))
@@ -152,28 +150,37 @@ general-purpose."))
  Second value indicates if replacing."
   (let* ((label (label p))
          (previous (gethash label (render-pipelines self))))
-    ;;(when previous) ; TODO 2025-08-31 15:09:38 destruct harmoniously
+    ;;(when previous) ; TODO 2025-08-31 15:09:38 destruct harmoniously, here vs on passed-out second value?
     (setf (gethash label (render-pipelines self)) p) ; manky non-factorable syntax
     (values p (and previous T))))
 
 (defmethod render-pipeline ((self mtk-context) &optional (pipeline-label :default))
   (gethash pipeline-label (render-pipelines self)))
 
-(defmethod add-vertex-buffer ((self mtk-context) (b buffer-handle)
-                              &optional pipeline-label)
-  "Add a vertex buffer to context, and optionally set up named render pipeline vertex descriptor."
-  ;; FIXME 2025-08-31 16:42:39 shouldn't be able to add same vb twice
-  ;; ...but could set up two pipelines for it...
-  (let* ((index (vector-push-extend b (vertex-buffers self))))
-    (when pipeline-label
-      (let* ((pd (render-pipeline self pipeline-label))
-             (vd (vertex-descriptor pd)))
-        (mtk::set-vertex-descriptor-attribute
-         vd index mtk:+vertex-format-float3+ 0 0)
-        (mtk::set-vertex-descriptor-layout
-         vd index (padded-element-size b) 1
-         mtk:+vertex-step-function-per-vertex+)
-        (mtk::set-vertex-descriptor pd vd)))))
+(defmethod add-vertex-buffer ((self mtk-context) (b buffer-handle))
+  "Add a vertex buffer to context if not already there. Returns index."
+  (let* ((vbs (vertex-buffers self))
+         (index (loop for i below (fill-pointer vbs)
+                      if (eq (elt vbs i)) return i)))
+    (assert (not index) nil "Buffer ~a already present in position ~a. Continue to return this index." b index)
+    (if index index (vector-push-extend b (vertex-buffers self)))))
+
+(defmethod configure-vertex-buffer ((self mtk-context) buffer-index
+                                    &key (pipeline-label :default) ; DRY vs render-pipeline...
+                                      (format mtk:+vertex-format-float3+)
+                                      (buffer-offset 0)
+                                      (argument-index 0)
+                                      stride
+                                      (step-rate 1)
+                                      (step-function mtk:+vertex-step-function-per-vertex+))
+  (assert (<= 1 (1+ index) (fill-pointer (vertex-buffers self))) (index) ; <- opportunity to correct
+          "Index ~a doesn't correspond to a vertex buffer." index)
+  (let* ((pd (render-pipeline self pipeline-label))
+         (vd (vertex-descriptor pd)))
+    (mtk::set-vertex-descriptor-attribute vd index format buffer-offset argument-index)
+    (mtk::set-vertex-descriptor-layout vd index (or stride (padded-element-size b))
+                                       step-rate step-function)
+    (mtk::set-vertex-descriptor pd vd)))
 
 ;; TODO 2025-08-31 16:53:12 does it make best sense to access via context like this
 (defmethod fill-vertex-buffer ((self mtk-context) index floats)
@@ -208,7 +215,7 @@ general-purpose."))
            (rp (mtk::render-pass-descriptor self))
            (ce (mtk::render-command-encoder cb rp))
            (pd (render-pipeline ctx :default))
-           (ps (pipeline-state pd self))) ; TODO 2025-08-30 17:34:29 debug/carry changes
+           (ps (pipeline-state pd self)))
       (unwind-protect
            (progn
              ;;(format t "Setting render pipeline state.~%")     
@@ -245,11 +252,12 @@ general-purpose."))
                                                   :fragment "fragment_lsd")))
          (vb (add-vertex-buffer
               ctx (make-instance 'buffer-handle :device (ns:device view) :count 3
-                                 :padded-element-size (* 4 3)))))
+                                                :padded-element-size (* 4 3))
+              :default)))
     (mtk::set-color-attachment-pixel-format pd 0 mtk:+pixel-format-a8-unorm+)
     (mtk::set-color-attachment-blending-enabled pd 0 T)
 
-    ;; FIXME 2025-08-31 16:57:46 fix refactor which has caused
+    ;; FIXME 2025-08-31 16:57:46 fix refactor which has caused (sly-inferior-lisp objc logging ftw)
 
     ;; 2025-08-31 16:56:21.112 sbcl[78075:9867265] Failed to create
     ;; render pipeline state in objc: Vertex function has input
