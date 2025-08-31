@@ -92,13 +92,23 @@
       (mtk::set-fragment-function self (mtk::make-function library fragment)))))
 
 (defmethod pipeline-state ((self render-pipeline) (view ns:mtk-view))
+  ;; FIXME 2025-08-31 22:58:37 This will fail if vbs not configured yet. (e.g. draw too early?)
+
+  ;; FIXME 2025-08-31 16:57:46 fix refactor which has caused (sly-inferior-lisp objc logging ftw)
+  ;; 2025-08-31 16:56:21.112 sbcl[78075:9867265] Failed to create
+  ;; render pipeline state in objc: Vertex function has input
+  ;; attributes but no vertex descriptor was set.
+
   ;; TODO 2025-08-30 15:20:02 maybe more efficient/non-allocating key fn...?
   (let* ((key (cons (ns::id view) (label self)))
          (cache (%states self))
          (cached (gethash key cache)))
     (if cached cached
-        (setf (gethash key cache)
-              (mtk::make-render-pipeline-state view (ns::cocoa-ref self))))))
+        (progn
+          (format t "About to make pipeline state for ~a in ~a.~%"
+                  (label self) view)
+          (setf (gethash key cache)
+                (mtk::make-render-pipeline-state view (ns::cocoa-ref self)))))))
 
 (defclass buffer-handle () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Metal buffer
   ((cocoa-ref :accessor ns::cocoa-ref :initform nil :documentation "Pointer to MTLBuffer")
@@ -121,7 +131,7 @@
            (mtk::new-buffer device (size self) (mode self)))
          "Failed to allocate buffer.")))
 
-(defmethod fill ((self buffer-handle) floats) ; TODO 2025-08-31 22:27:16 other data types!
+(defmethod fill-buffer ((self buffer-handle) floats) ; TODO 2025-08-31 22:27:16 other data types!
   ;; TODO 2025-08-17 16:27:37
   ;; maybe update-subrange for big buffers with small updates...
   ;; and maybe accommodate shared buffers on arm64...
@@ -130,7 +140,7 @@
          (range (ns:range 0 buffer-size)))
     (assert (= (* incoming-size 4) buffer-size) nil "Wrong data size.")
     (dotimes (i incoming-size)
-      (setf (cffi:mem-aref (contents handle) :float i)
+      (setf (cffi:mem-aref (contents self) :float i)
             (coerce (elt floats i) 'single-float)))
     ;; TODO 2025-08-31 22:50:34
     ;; for CPU->GPU copy when managed memory:
@@ -175,7 +185,7 @@ general-purpose."))
   "Add a vertex buffer to context if not already there. Returns index."
   (let* ((vbs (vertex-buffers self))
          (index (loop for i below (fill-pointer vbs)
-                      if (eq (elt vbs i)) return i)))
+                      if (eq (elt vbs i) b) return i)))
     (assert (not index) nil "Buffer ~a already present in position ~a. Continue to return this index." b index)
     (if index index (vector-push-extend b (vertex-buffers self)))))
 
@@ -187,13 +197,13 @@ general-purpose."))
                                       stride
                                       (step-rate 1)
                                       (step-function mtk:+vertex-step-function-per-vertex+))
-  (assert (<= 1 (1+ index) (fill-pointer (vertex-buffers self))) (index) ; <- opportunity to correct
-          "Index ~a doesn't correspond to a vertex buffer." index)
+  (assert (<= 1 (1+ buffer-index) (fill-pointer (vertex-buffers self)))
+          (buffer-index) ; <- opportunity to correct
+          "Index ~a doesn't correspond to a vertex buffer." buffer-index)
   (let* ((pd (render-pipeline self pipeline-label))
          (vd (vertex-descriptor pd)))
-    (mtk::set-vertex-descriptor-attribute vd index format buffer-offset argument-index)
-    (mtk::set-vertex-descriptor-layout vd index (or stride (padded-element-size b))
-                                       step-rate step-function)
+    (mtk::set-vertex-descriptor-attribute vd buffer-index format buffer-offset argument-index)
+    (mtk::set-vertex-descriptor-layout vd buffer-index stride step-rate step-function)
     (mtk::set-vertex-descriptor pd vd)))
 
 (progn ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Draw
@@ -249,22 +259,16 @@ general-purpose."))
     (mtk::set-color-attachment-pixel-format pd 0 mtk:+pixel-format-a8-unorm+)
     (mtk::set-color-attachment-blending-enabled pd 0 T)
 
-    ;; FIXME 2025-08-31 16:57:46 fix refactor which has caused (sly-inferior-lisp objc logging ftw)
-
-    ;; 2025-08-31 16:56:21.112 sbcl[78075:9867265] Failed to create
-    ;; render pipeline state in objc: Vertex function has input
-    ;; attributes but no vertex descriptor was set.
-
-    (fill vb #( 0.0  1.0  0.0
-               -1.0 -1.0  0.0
-                1.0 -1.0  0.0))
+    (fill-buffer vb #( 0.0  1.0  0.0
+                      -1.0 -1.0  0.0
+                       1.0 -1.0  0.0))
 
     (make-instance 'ns:timer :interval 0.0166 :timer-fn
                    (lambda (seconds)
-                     (fill vb (vector 
-                               0.0  1.0  0.0
-                               (sin (/ seconds 2)) -1.0  0.0
-                               1.0 -1.0  0.0))))
+                     (fill-buffer vb (vector 
+                                      0.0  1.0  0.0
+                                      (sin (/ seconds 2)) -1.0  0.0
+                                      1.0 -1.0  0.0))))
     
     ;; NB 2025-08-31 09:02:51 MTKView defaults to timer-redraw 60fps, alts available
     (setf (ns:content-view win) view)

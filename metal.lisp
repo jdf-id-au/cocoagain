@@ -219,7 +219,7 @@
 
 (defun set-vertex-descriptor-attribute (vertex-descriptor buffer-index format
                                         buffer-offset argument-index)
-  (assert (<= 0 index 31) nil "Index out of range") ; Metal-Feature-Set-Tables.pdf
+  (assert (<= 0 buffer-index 31) nil "Index out of range") ; Metal-Feature-Set-Tables.pdf
   (let* ((attribute (ns:objc (ns:objc vertex-descriptor "attributes" :pointer)
                              "objectAtIndexedSubscript:" :int buffer-index :pointer)))
     ;; The format of the vertex attribute.
