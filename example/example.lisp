@@ -50,6 +50,7 @@
   ;; FIXME 2025-08-31 11:03:41 doesn't always fire in time
   ;; ...giving "no applicable method for timer-fn when called with nil"
   (format t "Controlled destruction of ~a~%" self)
+  ;; FIXME 2025-09-01 21:38:20 double free if already invalidated...
   (mapcar #'ns:invalidate (draw-ctx-timers (ns:context self))))
 
 (ns:with-event-loop (:waitp t)
@@ -251,7 +252,9 @@ general-purpose."))
          (vb (make-instance 'buffer-handle :device (ns:device view) :size (* 4 3 3)))
          (vb-index (add-vertex-buffer ctx vb)))
     (configure-vertex-buffer ctx vb-index :stride (* 4 3))
-    (mtk::set-color-attachment-pixel-format pd 0 mtk:+pixel-format-a8-unorm+)
+    (mtk::set-color-attachment-pixel-format pd 0
+                                            #+x86-64 mtk:+pixel-format-a8-unorm+
+                                            #+arm64 mtk:+pixel-format-bgra8-unorm+)
     (mtk::set-color-attachment-blending-enabled pd 0 T)
 
     (fill-buffer vb #( 0.0  1.0  0.0
@@ -262,7 +265,8 @@ general-purpose."))
                    (lambda (seconds)
                      (fill-buffer vb (vector 
                                       0.0  1.0  0.0
-                                      (sin (/ seconds 2)) -1.0  0.0
+                                      ;; NB 2025-09-01 21:57:28 weirdly /2000 arm64 vs /2 x86-64
+                                      (sin (/ seconds 2000)) -1.0  0.0
                                       1.0 -1.0  0.0))))
     
     ;; NB 2025-08-31 09:02:51 MTKView defaults to timer-redraw 60fps, alts available
