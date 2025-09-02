@@ -92,19 +92,6 @@
     (when fragment
       (mtk::set-fragment-function self (mtk::make-function library fragment)))))
 
-(defmethod pipeline-state ((self render-pipeline) (view ns:mtk-view))
-  ;; FIXME 2025-08-31 22:58:37 This will fail if vbs not configured yet. (e.g. draw too early?)
-  ;; Should patch through objc workaround of make-render-pipeline-state's error to CL 
-
-  ;; TODO 2025-08-30 15:20:02 maybe more efficient/non-allocating key fn...?
-  (let* ((key (cons (ns::id view) (label self)))
-         (cache (%states self))
-         (cached (gethash key cache)))
-    (if cached cached
-        (progn
-          ;;(format t "About to make pipeline state for ~a in ~a.~%" (label self) view)
-          (setf (gethash key cache)
-                (mtk::make-render-pipeline-state view (ns::cocoa-ref self)))))))
 
 (defclass buffer-handle () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Metal buffer
   ((cocoa-ref :accessor ns::cocoa-ref :initform nil :documentation "Pointer to MTLBuffer")
@@ -202,6 +189,22 @@ general-purpose."))
     (mtk::set-vertex-descriptor-layout vd buffer-index stride step-rate step-function)
     (mtk::set-vertex-descriptor pd vd)))
 
+(defmethod pipeline-state ((self mtk-context) &optional (pipeline-label :default))
+  ;; FIXME 2025-08-31 22:58:37 This will fail if vbs not configured yet. (e.g. draw too early?)
+  ;; Should patch through objc workaround of make-render-pipeline-state's error to CL 
+
+  ;; TODO 2025-08-30 15:20:02 maybe more efficient/non-allocating key fn...?
+  (let* ((rp (render-pipeline self pipeline-label))
+         (view (view self))
+         (key (cons (ns::id view) pipeline-label))
+         (cache (%states rp))
+         (cached (gethash key cache)))
+    (if cached cached
+        (progn
+          ;;(format t "About to make pipeline state for ~a in ~a.~%" (label self) view)
+          (setf (gethash key cache)
+                (mtk::make-render-pipeline-state view (ns::cocoa-ref rp)))))))
+
 (progn ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Draw
   ;; for call frequency see https://stackoverflow.com/a/71655894/780743
   (defmethod ns:draw ((self ns:mtk-view))
@@ -211,10 +214,8 @@ general-purpose."))
            (cb (mtk::command-buffer (command-queue ctx)))
            (rp (mtk::render-pass-descriptor self)) ;; MTKView clearColor
            
-           (pd (render-pipeline ctx :default))
-           (pdp (render-pipeline ctx :point))
-           (ps (pipeline-state pd self))
-           (psp (pipeline-state pdp self)))
+           (ps (pipeline-state ctx))
+           (psp (pipeline-state ctx :point)))
       
       (let* ((ce (mtk::render-command-encoder cb rp)))
         (unwind-protect
@@ -236,6 +237,7 @@ general-purpose."))
          (view (make-instance 'ns:mtk-view))
          (ctx (make-instance 'mtk-context :view view))
          ;; TODO 2025-08-16 20:03:21 separate out so shader (pipeline etc?) can be hot reloaded
+         ;; incl file watch https://stackoverflow.com/a/11372441/780743
          (shader-source (uiop:read-file-string "example/example.metal"))
          ;; Uncompilable shader would be described in sly-inferior-lisp log from objc until I get lisp impl working.
          ;; Doesn't kill repl/runtime, just Continue.

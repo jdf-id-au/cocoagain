@@ -10,11 +10,23 @@
   char *names = #__VA_ARGS__
 
 // NB group by elided prefix; unelided first
-SPELL_ENUMS(MTLPrimitiveTypePoint, MTLPrimitiveTypeLine,
+SPELL_ENUMS(MTLTriangleFillModeFill, MTLTriangleFillModeLines,
+
+            MTLWindingClockwise, MTLWindingCounterClockwise,
+
+            MTLCullModeNone, MTLCullModeFront, MTLCullModeBack,
+
+            MTLPrimitiveTypePoint, MTLPrimitiveTypeLine,
             MTLPrimitiveTypeLineStrip, MTLPrimitiveTypeTriangle,
             MTLPrimitiveTypeTriangleStrip,
 
             MTLIndexTypeUInt16, MTLIndexTypeUInt32,
+
+            MTLDepthClipModeClip, MTLDepthClipModeClamp,
+
+            MTLLoadActionDontCare, MTLLoadActionLoad, MTLLoadActionClear,
+
+            MTLStoreActionDontCare, MTLStoreActionStore, MTLStoreActionMultisampleResolve, MTLStoreActionStoreAndMultisampleResolve, MTLStoreActionUnknown, MTLStoreActionCustomSampleDepthStore,
 
             MTLResourceCPUCacheModeDefaultCache,
             MTLResourceCPUCacheModeWriteCombined,
