@@ -130,9 +130,13 @@
 
 ;; TODO 2025-08-31 23:19:00 compare with setVertexBufferOffset:atIndex: Updates an entry in the vertex shader argument table with a new location within the entry’s current buffer.
 (defun set-vertex-buffer (command-encoder buffer &key (offset 0) (argument-index 0))
-  (ns:objc command-encoder "setVertexBuffer:offset:atIndex:" :pointer buffer
-							     :int offset ; alignment requirements...
-							     :int argument-index))
+  (ns:objc command-encoder "setVertexBuffer:offset:atIndex:"
+           :pointer buffer
+           :int offset ; alignment requirements...
+           ;; TOOD 2025-09-02 17:23:48
+           ;; meaning [[id(1)]] ? MSLS 2.13 Argument Buffers
+           ;; or literally vertex shader argument order
+           :int argument-index)) 
 ;; TODO 2025-08-31 23:19:03 setVertexBuffers:offsets:withRange: low priority
 
 (defun set-fragment-buffer (command-encoder buffer &key (offset 0) (argument-index 0))
@@ -204,6 +208,19 @@
                     "objectAtIndexedSubscript:" :int index :pointer)))
     ;; TODO 2025-08-31 16:26:27 test BOOL passing bullshit
     (ns:objc color-attachment "setBlendingEnabled:" :char (if state 1 0))))
+
+(defun set-color-attachment-blend-factor (pipeline-descriptor index
+                                          where which state)
+  (let* ((color-attachment
+           (ns:objc (ns:objc pipeline-descriptor "colorAttachments" :pointer)
+                    "objectAtIndexedSubscript:" :int index :pointer)))
+    (ns:objc color-attachment
+             (concatenate 'string
+                          "set"
+                          (ecase where (:source "Source")(:dest "Destination"))
+                          (ecase which (:rgb "RGB") (:alpha "Alpha"))
+                          "BlendFactor:")
+             :int state)))
 
 ;; TODO 2025-08-31 16:01:51 blendingEnabled alphaBlendingOperation rgbBlendOperation
 ;; ... from MTLRenderPipelineColorAttachmentDescriptor

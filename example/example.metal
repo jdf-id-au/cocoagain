@@ -68,3 +68,19 @@ fragment float4 fragment_lsd(VertexOut in [[stage_in]]) {
   col.a = 0; // TODO 2025-08-31 12:59:14 seems to do nothing? ...investigate
   return col;
 }
+
+struct VertexPointOut {
+  float4 position [[position]];
+  float point_size [[point_size]];
+};
+
+vertex VertexPointOut vertex_point(VertexIn vert [[stage_in]]) {
+  return (VertexPointOut) {
+    .position = float4(vert.position, 1),
+    .point_size = 100
+  };
+}
+
+fragment float4 fragment_point(VertexPointOut in [[stage_in]]) {
+  return float4(1.0, 0.0, 0.0, 0.5);
+}

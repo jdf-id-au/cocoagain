@@ -19,6 +19,7 @@ Other notable projects:
 
 ## Getting started
 
+`make -C C`
 See `example.lisp`.
 
 ## TODO

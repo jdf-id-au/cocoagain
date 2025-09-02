@@ -29,3 +29,8 @@
 (defconstant CompareFunctionAlways 7)
 (defconstant PixelFormatA8Unorm 1)
 (defconstant PixelFormatBGRA8Unorm 80)
+(defconstant BlendFactorZero 0)
+(defconstant BlendFactorOne 1)
+(defconstant BlendFactorSourceAlpha 4)
+(defconstant BlendFactorDestinationAlpha 8)
+(defconstant BlendFactorBlendAlpha 13)

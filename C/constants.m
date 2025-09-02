@@ -35,7 +35,9 @@ SPELL_ENUMS(MTLPrimitiveTypePoint, MTLPrimitiveTypeLine,
             MTLCompareFunctionAlways,
             
             MTLPixelFormatA8Unorm, MTLPixelFormatBGRA8Unorm,
-);
+
+            MTLBlendFactorZero, MTLBlendFactorOne, MTLBlendFactorSourceAlpha, MTLBlendFactorDestinationAlpha, MTLBlendFactorBlendAlpha,
+            );
 
 struct elision {
   char *prefix, *package, *abbrev;
