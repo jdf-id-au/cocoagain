@@ -265,8 +265,8 @@ general-purpose."))
                    (lambda (seconds)
                      (fill-buffer vb (vector 
                                       0.0  1.0  0.0
-                                      ;; NB 2025-09-01 21:57:28 weirdly /2000 arm64 vs /2 x86-64
-                                      (sin (/ seconds 2000)) -1.0  0.0
+                                      ;; NB 2025-09-01 21:57:28 timer behaves differently ~1000x arm64 vs x86-64
+                                      (sin (/ seconds 2)) -1.0  0.0
                                       1.0 -1.0  0.0))))
     
     ;; NB 2025-08-31 09:02:51 MTKView defaults to timer-redraw 60fps, alts available

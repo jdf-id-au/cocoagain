@@ -23,5 +23,6 @@ See `example.lisp`.
 
 ## TODO
 
-- Metal resource management (pipeline, buffers etc)
-- Dynamic controls view, value binding?
+- more Metal resource management
+- test multi-shader scene incl blending
+- dynamic controls view, value binding? vs immediate mode something?

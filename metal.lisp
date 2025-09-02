@@ -389,7 +389,7 @@
      (defconstant ,name ,value)
      (export ',name)))
 
-(define-constant +primitive-type-point+ 0)
+(define-constant +primitive-type-point+ 0) ; vs must specify [[point_size]]
 (define-constant +primitive-type-line+ 1)
 (define-constant +primitive-type-line-strip+ 2)
 (define-constant +primitive-type-triangle+ 3)

@@ -14,3 +14,6 @@ application.m window.m view.m timer.m
 # Prepare compliation db (for lsp...) with $ bear -- make check
 check: check.m ../libcocoagain.dylib
 	cc $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) -lcocoagain -I./ -L../ $< -o $@
+
+constants: constants.m
+	cc $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) $< -o $@
