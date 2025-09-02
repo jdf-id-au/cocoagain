@@ -315,15 +315,15 @@
 
 ;; ────────────────────────────────────────────────────────────────────── Buffer
 
-(defun new-buffer (device length &optional (options (+ +resource-cpu-cache-mode-default-cache+
-                                                       +resource-storage-mode-managed+)))
+(defun new-buffer (device length &optional (options (+ mtl::ResourceCPUCacheModeDefaultCache
+                                                       mtl::ResourceStorageModeManaged)))
   (ns:objc device "newBufferWithLength:options:"
            :int length
            :int options
            :pointer))
 
-(defun make-buffer (device data length &optional (options (+ +resource-cpu-cache-mode-default-cache+
-                                                             +resource-storage-mode-managed+)))
+(defun make-buffer (device data length &optional (options (+ mtl::ResourceCPUCacheModeDefaultCache
+                                                             mtl::ResourceStorageModeManaged)))
   "Copies data."
   (ns:objc device "newBufferWithBytes:length:options:"
 	   :pointer data
@@ -381,136 +381,3 @@
 
 (defun clear-color (mtk-view red green blue alpha)
   (ns:objc mtk-view "setClearColor:" (:struct clear-color) (make-clear-color red green blue alpha)))
-
-;; ─────────────────────────────────────────────────────────────────── Constants
-
-(defmacro define-constant (name value)
-  `(progn
-     (defconstant ,name ,value)
-     (export ',name)))
-
-(define-constant +primitive-type-point+ 0) ; vs must specify [[point_size]]
-(define-constant +primitive-type-line+ 1)
-(define-constant +primitive-type-line-strip+ 2)
-(define-constant +primitive-type-triangle+ 3)
-(define-constant +primitive-type-triangle-strip+ 4)
-
-(define-constant +index-type-uint16+ 0)
-(define-constant +index-type-uint32+ 1)
-
-;; TODO 2025-08-31 22:48:34 check against fiddly expression in:
-;; /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/Metal.framework/Versions/A/Headers/MTLResource.h
-;; NB default doesn't contribute to AND; memoryless is managed+private:
-(define-constant +resource-cpu-cache-mode-default-cache+ 0) ; ╴ resource options
-(define-constant +resource-cpu-cache-mode-write-combined+ 1)
-(define-constant +resource-storage-mode-shared+ 0)
-(define-constant +resource-storage-mode-managed+ 16)
-(define-constant +resource-storage-mode-private+ 32)
-(define-constant +resource-storage-mode-memoryless+ 48)
-
-(define-constant +vertex-format-invalid+ 0)
-(define-constant +vertex-format-uchar+ 45)
-(define-constant +vertex-format-uchar2+ 1)
-(define-constant +vertex-format-uchar3+ 2)
-(define-constant +vertex-format-uchar4+ 3)
-
-(define-constant +vertex-format-char+ 46)
-(define-constant +vertex-format-char2+ 4)
-(define-constant +vertex-format-char3+ 5)
-(define-constant +vertex-format-char4+ 6)
-
-(define-constant +vertex-format-ushort+ 49)
-(define-constant +vertex-format-ushort2+ 13)
-(define-constant +vertex-format-ushort3+ 14)
-(define-constant +vertex-format-ushort4+ 15)
-
-(define-constant +vertex-format-short+ 50)
-(define-constant +vertex-format-short2+ 16)
-(define-constant +vertex-format-short3+ 17)
-(define-constant +vertex-format-short4+ 18)
-
-(define-constant +vertex-format-short+ 50)
-(define-constant +vertex-format-short2+ 16)
-(define-constant +vertex-format-short3+ 17)
-(define-constant +vertex-format-short4+ 18)
-
-(define-constant +vertex-format-half+ 53)
-(define-constant +vertex-format-half2+ 25)
-(define-constant +vertex-format-half3+ 26)
-(define-constant +vertex-format-half4+ 27)
-
-(define-constant +vertex-format-float+ 28)
-(define-constant +vertex-format-float2+ 29)
-(define-constant +vertex-format-float3+ 30)
-(define-constant +vertex-format-float4+ 31)
-
-(define-constant +vertex-format-uint+ 36)
-(define-constant +vertex-format-uint2+ 37)
-(define-constant +vertex-format-uint3+ 38)
-(define-constant +vertex-format-uint4+ 39)
-
-(define-constant +vertex-format-int+ 32)
-(define-constant +vertex-format-int2+ 33)
-(define-constant +vertex-format-int3+ 34)
-(define-constant +vertex-format-int4+ 35)
-
-(define-constant +vertex-step-function-constant+ 0)
-(define-constant +vertex-step-function-per-vertex+ 1)
-(define-constant +vertex-step-function-per-instance+ 2)
-(define-constant +vertex-step-function-per-patch+ 3)
-(define-constant +vertex-step-function-per-patch-control-point+ 4)
-
-(define-constant +compare-function-never+ 0)
-(define-constant +compare-function-less+ 1)
-(define-constant +compare-function-equal+ 2)
-(define-constant +compare-function-less-equal+ 3)
-(define-constant +compare-function-greater+ 4)
-(define-constant +compare-function-not-equal+ 5)
-(define-constant +compare-function-greater-equal+ 6)
-
-(define-constant +pixel-format-a8-unorm+ 1)
-(define-constant +pixel-format-r8-unorm+ 10)
-(define-constant +pixel-format-r8-unorm-srgb+ 11)
-(define-constant +pixel-format-r8-snorm+ 12)
-(define-constant +pixel-format-r8-uint+ 13)
-(define-constant +pixel-format-r8-sint+ 14)
-
-(define-constant +pixel-format-r16-unorm+ 20)
-(define-constant +pixel-format-r16-snorm+ 22)
-(define-constant +pixel-format-r16-uint+ 23)
-(define-constant +pixel-format-r16-sint+ 24)
-(define-constant +pixel-format-r16-float+ 25)
-(define-constant +pixel-format-rg8-unorm+ 30)
-(define-constant +pixel-format-rg8-unorm-srgb+ 31)
-(define-constant +pixel-format-rg8-snorm+ 32)
-(define-constant +pixel-format-rg8-uint+ 33)
-(define-constant +pixel-format-rg8-sint+ 34)
-
-(define-constant +pixel-format-b5g6r5-unorm+ 40) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ packed
-(define-constant +pixel-format-a1bgr5-unorm+ 41)
-(define-constant +pixel-format-abgr4-unorm+ 42)
-(define-constant +pixel-format-bgr5a1-unorm+ 43)
-
-(define-constant +pixel-format-r32-uint+ 53)
-(define-constant +pixel-format-r32-sint+ 54)
-(define-constant +pixel-format-r32-float+ 55)
-(define-constant +pixel-format-rg16-unorm+ 60)
-(define-constant +pixel-format-rg16-snorm+ 62)
-(define-constant +pixel-format-rg16-uint+ 63)
-(define-constant +pixel-format-rg16-sint+ 64)
-(define-constant +pixel-format-rg16-float+ 65)
-(define-constant +pixel-format-rgba8-unorm+ 70)
-(define-constant +pixel-format-rgba8-unorm-srgb+ 71)
-(define-constant +pixel-format-rgba8-snorm+ 72)
-(define-constant +pixel-format-rgba8-uint+ 73)
-(define-constant +pixel-format-rgba8-sint+ 74)
-(define-constant +pixel-format-bgra8-unorm+ 80)
-(define-constant +pixel-format-bgra8-unorm-srgb+ 81)
-
-(define-constant +pixel-format-depth16-unorm+ 250)
-(define-constant +pixel-format-depth32-float+ 252)
-(define-constant +pixel-format-stencil8+ 253)
-(define-constant +pixel-format-depth24-unorm-stencil8+ 255)
-(define-constant +pixel-format-depth32-float-stencil8+ 260)
-(define-constant +pixel-format-x32-stencil8+ 261)
-(define-constant +pixel-format-x24-stencil8+ 262)

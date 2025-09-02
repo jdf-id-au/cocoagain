@@ -110,8 +110,8 @@
   ((cocoa-ref :accessor ns::cocoa-ref :initform nil :documentation "Pointer to MTLBuffer")
    (size :initarg :size :reader size)
    (mode :initarg :mode :reader mode :initform
-         (+ mtk:+resource-storage-mode-managed+ ; TODO 2025-08-31 22:20:23 differently on +arm64 ?
-            mtk:+resource-cpu-cache-mode-default-cache+)))) ; vs ...write-combined
+         (+ mtl::ResourceStorageModeManaged ; TODO 2025-08-31 22:20:23 differently on +arm64 ?
+            mtl::ResourceCPUCacheModeDefaultCache)))) ; vs ...write-combined
 
 (defmethod contents ((self buffer-handle))
   (ns:protect (mtk::buffer-contents self)
@@ -187,12 +187,12 @@ general-purpose."))
 
 (defmethod configure-vertex-buffer ((self mtk-context) buffer-index
                                     &key (pipeline-label :default) ; DRY vs render-pipeline...
-                                      (format mtk:+vertex-format-float3+)
+                                      (format mtl::VertexFormatFloat3)
                                       (buffer-offset 0)
                                       (argument-index 0)
                                       stride
                                       (step-rate 1)
-                                      (step-function mtk:+vertex-step-function-per-vertex+))
+                                      (step-function mtl::VertexStepFunctionPerVertex))
   (assert (<= 1 (1+ buffer-index) (fill-pointer (vertex-buffers self)))
           (buffer-index) ; <- opportunity to correct
           "Index ~a doesn't correspond to a vertex buffer." buffer-index)
@@ -219,7 +219,7 @@ general-purpose."))
              (mtk::set-render-pipeline-state ce ps)
              (mtk::set-vertex-buffer ce vb :argument-index 0)
              ;;(format t "Drawing primitives.~%")
-             (mtk::draw-primitives ce mtk:+primitive-type-triangle+ 0 3)
+             (mtk::draw-primitives ce mtl::PrimitiveTypeTriangle 0 3)
              ;;(format t "Ok.~%")
              )
         ;;(format t "About to end encoding.~%")
@@ -253,8 +253,8 @@ general-purpose."))
          (vb-index (add-vertex-buffer ctx vb)))
     (configure-vertex-buffer ctx vb-index :stride (* 4 3))
     (mtk::set-color-attachment-pixel-format pd 0
-                                            #+x86-64 mtk:+pixel-format-a8-unorm+
-                                            #+arm64 mtk:+pixel-format-bgra8-unorm+)
+                                            #+x86-64 mtl::PixelFormatA8Unorm
+                                            #+arm64 mtl::PixelFormatBGRA8Unorm)
     (mtk::set-color-attachment-blending-enabled pd 0 T)
 
     (fill-buffer vb #( 0.0  1.0  0.0

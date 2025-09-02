@@ -28,6 +28,6 @@
                (:file "window")
                (:file "view")
                (:file "core-graphics")
-               (:file "metal")))
+               (:file "metal-kit")))
 
 (pushnew :cocoagain *features*)
