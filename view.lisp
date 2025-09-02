@@ -7,29 +7,29 @@
 
 (cffi:defcallback view-draw-callback :void
     ((id :int)
-     (draw-flag :int)
-     (cgl-context :pointer)
+     (draw-type :int)
+     (cgl-context :pointer) ;; FIXME 2025-09-02 19:18:54 these two unused
      (cgl-pixel-format :pointer)
      (width :int) (height :int))
   (let* ((view (gethash id *view-table*)))
     (setf (width view) width
           (height view) height)
     (handler-case
-        (ecase draw-flag
+        (ecase draw-type
           (0 (init view))
           (1 (draw view))
           (2 (reshape view)) ; NB 2025-08-15 21:29:38 only defined for mtl?
           (3 (release view) (remhash id *view-table*)))
-      (error (c) (break (format nil "Caught signal while drawing (~a): \"~a\"" draw-flag c))))))
+      (error (c) (break (format nil "Caught signal while drawing (~a): \"~a\"" draw-type c))))))
 
 (cffi:defcallback view-event-callback :void
     ((id :int)
-     (mouse-flag :int)
+     (event-type :int)
      (event :pointer)
      (x :double) (y :double))
   (let* ((view (gethash id *view-table*)))
     (handler-case
-        (ecase mouse-flag
+        (ecase event-type
           (0 (mouse-down view event x y))
           (1 (mouse-dragged view event x y))
           (2 (mouse-up view event x y))

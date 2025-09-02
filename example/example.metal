@@ -82,5 +82,5 @@ vertex VertexPointOut vertex_point(VertexIn vert [[stage_in]]) {
 }
 
 fragment float4 fragment_point(VertexPointOut in [[stage_in]]) {
-  return float4(1.0, 0.0, 0.0, 0.5);
+  return float4(1.0, 1.0, 0.0, 0.5);
 }

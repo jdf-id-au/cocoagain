@@ -2,7 +2,9 @@
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
 
-typedef void(*DrawFn)(int,int,void*,void*,int,int);
+typedef void (*DrawFn)(int iID, int type, void *cgl_context,
+                       void *cgl_pixel_format, int width,
+                       int height);
 typedef void(*EventFn)(int iID, int type, NSEvent *e,
                        double locationX, double locationY);
 

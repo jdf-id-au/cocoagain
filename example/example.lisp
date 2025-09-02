@@ -209,35 +209,32 @@ general-purpose."))
            ;; TODO 2025-08-30 11:29:14 could automate translation of pointer?
            (vb (ns::cocoa-ref (elt (vertex-buffers ctx) 0))) ; vertex buffers index
            (cb (mtk::command-buffer (command-queue ctx)))
-           (rp (mtk::render-pass-descriptor self))
+           (rp (mtk::render-pass-descriptor self)) ;; MTKView clearColor
            
            (pd (render-pipeline ctx :default))
            (pdp (render-pipeline ctx :point))
            (ps (pipeline-state pd self))
            (psp (pipeline-state pdp self)))
       
-      (let* ((ce (mtk::render-command-encoder cb rp))) ; working colour
+      (let* ((ce (mtk::render-command-encoder cb rp)))
         (unwind-protect
              (progn
-               ;;(format t "Setting render pipeline state.~%")     
-               (mtk::set-render-pipeline-state ce ps)
-               (mtk::set-vertex-buffer ce vb :argument-index 0)
-               ;;(format t "Drawing primitives.~%")
-               (mtk::draw-primitives ce mtl::PrimitiveTypeTriangle 0 3)
-               ;;(format t "Ok.~%")
-               )
-          ;;(format t "About to end encoding.~%")
-          (mtk::end-encoding ce)))
-      (let* ((rp (mtk::render-pass-descriptor self)) ; needed?
-                  (ce (mtk::render-command-encoder cb rp)))
-        (unwind-protect
-             (progn
-               ;;(format t "Setting render pipeline state.~%")     
-               (mtk::set-render-pipeline-state ce psp)
-               (mtk::set-vertex-buffer ce vb :argument-index 0)
-               ;;(format t "Drawing primitives.~%")
-               (mtk::draw-primitives ce mtl::PrimitiveTypePoint 0 3)
-               ;;(format t "Ok.~%")
+               (progn
+                 ;;(format t "Setting render pipeline state.~%")     
+                 (mtk::set-render-pipeline-state ce ps)
+                 (mtk::set-vertex-buffer ce vb :argument-index 0)
+                 ;;(format t "Drawing primitives.~%")
+                 (mtk::draw-primitives ce mtl::PrimitiveTypeTriangle 0 3)
+                 ;;(format t "Ok.~%")
+                 )
+               (progn
+                 ;;(format t "Setting render pipeline state.~%")     
+                 (mtk::set-render-pipeline-state ce psp)
+                 (mtk::set-vertex-buffer ce vb :argument-index 0)
+                 ;;(format t "Drawing primitives.~%")
+                 (mtk::draw-primitives ce mtl::PrimitiveTypePoint 0 3)
+                 ;;(format t "Ok.~%")
+                 )
                )
           ;;(format t "About to end encoding.~%")
           (mtk::end-encoding ce)))
@@ -279,13 +276,18 @@ general-purpose."))
     (mtk::set-color-attachment-pixel-format pd 0
                                             #+x86-64 mtl::PixelFormatA8Unorm
                                             #+arm64 mtl::PixelFormatBGRA8Unorm)
-    (mtk::set-color-attachment-blending-enabled pd 0 T)
-    (mtk::set-color-attachment-blend-factor pd 0 :source :rgb mtl::BlendFactorSourceAlpha)
-    (mtk::set-color-attachment-blend-factor pd 0 :dest :rgb mtl::BlendFactorDestinationAlpha)
-    
-    (mtk::set-color-attachment-blending-enabled pdp 0 T)
-    (mtk::set-color-attachment-blend-factor pdp 0 :source :rgb mtl::BlendFactorSourceAlpha)
-    (mtk::set-color-attachment-blend-factor pdp 0 :dest :rgb mtl::BlendFactorDestinationAlpha)
+    (mtk::set-color-attachment-pixel-format pdp 0
+                                            #+x86-64 mtl::PixelFormatA8Unorm
+                                            #+arm64 mtl::PixelFormatBGRA8Unorm)
+    ;; FIXME 2025-09-02 19:04:00 even just paint on top seems not to work... how to submit?
+    #+nil(progn
+      (mtk::set-color-attachment-blending-enabled pd 0 T)
+      (mtk::set-color-attachment-blend-factor pd 0 :source :rgb mtl::BlendFactorSourceAlpha)
+      (mtk::set-color-attachment-blend-factor pd 0 :dest :rgb mtl::BlendFactorDestinationAlpha)
+      
+      (mtk::set-color-attachment-blending-enabled pdp 0 T)
+      (mtk::set-color-attachment-blend-factor pdp 0 :source :rgb mtl::BlendFactorSourceAlpha)
+      (mtk::set-color-attachment-blend-factor pdp 0 :dest :rgb mtl::BlendFactorDestinationAlpha))
     
     (fill-buffer vb #( 0.0  0.9  0.0
                       -0.7 -1.0  0.0
