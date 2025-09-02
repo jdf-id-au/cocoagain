@@ -279,15 +279,11 @@ general-purpose."))
     (mtk::set-color-attachment-pixel-format pdp 0
                                             #+x86-64 mtl::PixelFormatA8Unorm
                                             #+arm64 mtl::PixelFormatBGRA8Unorm)
-    ;; FIXME 2025-09-02 19:04:00 even just paint on top seems not to work... how to submit?
-    #+nil(progn
-      (mtk::set-color-attachment-blending-enabled pd 0 T)
-      (mtk::set-color-attachment-blend-factor pd 0 :source :rgb mtl::BlendFactorSourceAlpha)
-      (mtk::set-color-attachment-blend-factor pd 0 :dest :rgb mtl::BlendFactorDestinationAlpha)
-      
+    
+    (progn
       (mtk::set-color-attachment-blending-enabled pdp 0 T)
       (mtk::set-color-attachment-blend-factor pdp 0 :source :rgb mtl::BlendFactorSourceAlpha)
-      (mtk::set-color-attachment-blend-factor pdp 0 :dest :rgb mtl::BlendFactorDestinationAlpha))
+      (mtk::set-color-attachment-blend-factor pdp 0 :dest :rgb mtl::BlendFactorSourceAlpha))
     
     (fill-buffer vb #( 0.0  0.9  0.0
                       -0.7 -1.0  0.0
