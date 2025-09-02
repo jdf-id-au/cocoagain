@@ -7,7 +7,13 @@ OBJCFLAGS=-fno-objc-arc -fmodules -mmacos-version-min=12.4
 FRAMEWORKS=-framework Cocoa -framework QuartzCore \
 -framework Metal -framework MetalKit
 
-../libcocoagain.dylib: \
+constants: constants.m
+	cc $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) $< -o $@
+
+../constants.lisp: constants
+	./$< > $@
+
+../libcocoagain.dylib: ../constants.lisp \
 application.m window.m view.m timer.m
 	cc -dynamiclib $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) $^ -o $@
 
@@ -15,5 +21,3 @@ application.m window.m view.m timer.m
 check: check.m ../libcocoagain.dylib
 	cc $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) -lcocoagain -I./ -L../ $< -o $@
 
-constants: constants.m
-	cc $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) $< -o $@

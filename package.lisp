@@ -55,7 +55,5 @@
    #:stroke-path))
 
 (defpackage :metal-kit
-  ;; NB 2025-08-30 05:11:52 mainly ::unexported symbols
-  ;; some direct constant exports, see metal.lisp
   (:nicknames :mtk)
   (:use cl))

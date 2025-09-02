@@ -19,6 +19,7 @@
                :trivial-main-thread)
   :serial t
   :components ((:file "package")
+               (:file "constants")
                (:file "util")
                (:file "id-map")
                (:file "library")
