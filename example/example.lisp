@@ -186,7 +186,7 @@ general-purpose."))
     (if index index (vector-push-extend b (vertex-buffers self)))))
 
 (defmethod configure-vertex-buffer ((self mtk-context) buffer-index
-                                    &key (pipeline-label :default) ; DRY vs render-pipeline...
+                                    &key (pipeline :default) ; DRY vs render-pipeline...
                                       (format mtl::VertexFormatFloat3)
                                       (buffer-offset 0)
                                       (argument-index 0)
@@ -196,7 +196,7 @@ general-purpose."))
   (assert (<= 1 (1+ buffer-index) (fill-pointer (vertex-buffers self)))
           (buffer-index) ; <- opportunity to correct
           "Index ~a doesn't correspond to a vertex buffer." buffer-index)
-  (let* ((pd (render-pipeline self pipeline-label))
+  (let* ((pd (render-pipeline self pipeline))
          (vd (vertex-descriptor pd)))
     (mtk::set-vertex-descriptor-attribute vd buffer-index format buffer-offset argument-index)
     (mtk::set-vertex-descriptor-layout vd buffer-index stride step-rate step-function)
@@ -219,31 +219,14 @@ general-purpose."))
       (let* ((ce (mtk::render-command-encoder cb rp)))
         (unwind-protect
              (progn
-               (progn
-                 ;;(format t "Setting render pipeline state.~%")     
-                 (mtk::set-render-pipeline-state ce ps)
-                 (mtk::set-vertex-buffer ce vb :argument-index 0)
-                 ;;(format t "Drawing primitives.~%")
-                 (mtk::draw-primitives ce mtl::PrimitiveTypeTriangle 0 3)
-                 ;;(format t "Ok.~%")
-                 )
-               (progn
-                 ;;(format t "Setting render pipeline state.~%")     
-                 (mtk::set-render-pipeline-state ce psp)
-                 (mtk::set-vertex-buffer ce vb :argument-index 0)
-                 ;;(format t "Drawing primitives.~%")
-                 (mtk::draw-primitives ce mtl::PrimitiveTypePoint 0 3)
-                 ;;(format t "Ok.~%")
-                 )
-               )
-          ;;(format t "About to end encoding.~%")
+               (mtk::set-vertex-buffer ce vb :argument-index 0)
+               (mtk::set-render-pipeline-state ce ps)
+               (mtk::draw-primitives ce mtl::PrimitiveTypeTriangle 0 3)
+               (mtk::set-render-pipeline-state ce psp)
+               (mtk::draw-primitives ce mtl::PrimitiveTypePoint 0 3))
           (mtk::end-encoding ce)))
-      ;;(format t "About to present drawable.~%")
       (mtk::present-drawable cb (mtk::drawable self))
-      ;;(format t "About to commit.~%")
-      (mtk::commit cb)
-      ;;(format t "Committed.~%")
-      ))
+      (mtk::commit cb)))
   (display-all))
 
 (ns:with-event-loop (:waitp t) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Event loop
@@ -272,7 +255,7 @@ general-purpose."))
          (vb-index (add-vertex-buffer ctx vb)))
 
     (configure-vertex-buffer ctx vb-index :stride (* 4 3))
-    (configure-vertex-buffer ctx vb-index :pipeline-label :point :stride (* 4 3))
+    (configure-vertex-buffer ctx vb-index :pipeline :point :stride (* 4 3))
     (mtk::set-color-attachment-pixel-format pd 0
                                             #+x86-64 mtl::PixelFormatA8Unorm
                                             #+arm64 mtl::PixelFormatBGRA8Unorm)

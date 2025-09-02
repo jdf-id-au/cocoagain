@@ -65,7 +65,7 @@ fragment float4 fragment_lsd(VertexOut in [[stage_in]]) {
   float4 col;
   col.rg = abs(sin(in.ndc.xy * M_PI_F));
   col.b = abs(sin((in.ndc.x + in.ndc.y)/2 * M_PI_F));
-  col.a = 0; // TODO 2025-08-31 12:59:14 seems to do nothing? ...investigate
+  col.a = 0.5;
   return col;
 }
 
@@ -77,7 +77,7 @@ struct VertexPointOut {
 vertex VertexPointOut vertex_point(VertexIn vert [[stage_in]]) {
   return (VertexPointOut) {
     .position = float4(vert.position, 1),
-    .point_size = 100
+    .point_size = 100 * (abs(vert.position.x) + abs(vert.position.y)) 
   };
 }
 
