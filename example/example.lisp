@@ -91,15 +91,18 @@
   (multiple-value-bind (name ty sz n norm) (parse-vf vf)
     (let* ((fn (intern (format nil "PUT-~aS" name))) ; upper case PUT to prevent symbol name escaping...
            (fts (cffi:foreign-type-size ty))
+           (fta (cffi:foreign-type-alignment ty))
            (v (case ty (:float `(coerce (elt vals i) 'single-float))
                     (t `(elt vals i)))))
       `(defmethod ,fn ((self buffer-handle) vals &key (offset 0))
          (let* ((max-size (- (size self) offset))
                 (incoming-n (array-total-size vals))
                 (incoming-size (* ,sz incoming-n)))
+           ;; TODO 2025-09-06 23:21:12 verify that this would actually be a problem:
+           (assert (zerop (mod offset ,fta)) nil "Wrong alignment: ~a not divisible by ~a." offset ,fta)
            (assert (zerop (mod incoming-n ,n)) nil "Wrong number of values: ~a not divisible by ~a." incoming-n ,n)
-           (assert (<= incoming-size max-size) nil "Too much data.")
-           (dotimes (i incoming-n) ; FIXME 2025-09-06 22:05:44 alignment when offset; pad if necessary!
+           (assert (<= incoming-size max-size) nil "Too much data ~a vs ~a bytes available." incoming-size max-size)
+           (dotimes (i incoming-n)
              (setf (cffi:mem-ref (contents self) ,ty (+ offset (* i ,fts))) ,v))
            (ns:objc self "didModifyRange:" (:struct ns:range) (ns:range offset (+ offset incoming-size))))))))
 
