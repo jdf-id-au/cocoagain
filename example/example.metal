@@ -37,7 +37,6 @@ vertex VertexOut vertex_ndc(VertexIn vert [[stage_in]]) {
 become the per-fragment inputs to a fragment function. The
 [[stage_in]] attribute can assemble the per-fragment inputs. */
 fragment float4 fragment_main(VertexOut in [[stage_in]]) {
-  // nice gradient on intel, buggy red on arm64? seems to disregard this return value?
   return float4((in.ndc.xyz + 1)/2, 1);
 }
 
@@ -82,5 +81,5 @@ vertex VertexPointOut vertex_point(VertexIn vert [[stage_in]]) {
 }
 
 fragment float4 fragment_point(VertexPointOut in [[stage_in]]) {
-  return float4(1.0, 1.0, 0.0, 0.5);
+  return float4(1.0, 1.0, 0.0, 0.8);
 }

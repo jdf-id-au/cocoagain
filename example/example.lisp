@@ -16,57 +16,6 @@
 
 (ns:start-event-loop)
 
-;; ─────────────────────────────────────────────────────────────── Core Graphics
-(defstruct draw-ctx randoms timers)
-
-(progn
-  (defmethod ns:draw ((self ns:view))
-    (let* ((ctx (ns:current-cg-context))
-           (dc (ns:context self))
-           (re 0)
-           (w (ns:width self))
-           (h (ns:height self))
-           (r (ns:rect 0 0 w h))
-           (wobble-max 0.05)) ; displacement
-      (flet ((wobble (d) ; wobble using time around stable random fractions
-               (let ((rand-frac (elt (draw-ctx-randoms dc) (incf re))))
-                 (* d (+ (* (sin (* 2 pi (real-time))) wobble-max) ; period of one second
-                         (* rand-frac (- 1.0 (* 2 wobble-max))) ; fit don't clamp
-                         wobble-max)))))
-        ;;(format t "bounds ~a~%" (cg:display-bounds 0))
-        (cg:set-rgb-fill-color ctx (wobble 1.0) (wobble 1.0) (wobble 1.0))
-        (cg:fill-rect ctx r)
-        (cg:set-line-width ctx 10.0)
-        (cg:set-rgb-stroke-color ctx (wobble 1.0) (wobble 1.0) (wobble 1.0))
-        (cg:move-to-point ctx (wobble w) (wobble h))
-        (cg:add-line-to-point ctx (+ w (wobble (- w))) (wobble h))
-        (cg:add-curve-to-point ctx (wobble w) (wobble h)
-                               (wobble w) (wobble h)
-                               (wobble w) (wobble h))
-        (cg:stroke-path ctx))))
-  (display-all)) ; redundant refresh when auto-updating...
-
-(defmethod ns:release ((self ns:view))
-  ;; FIXME 2025-08-31 11:03:41 doesn't always fire in time
-  ;; ...giving "no applicable method for timer-fn when called with nil"
-  (format t "Controlled destruction of ~a~%" self)
-  ;; FIXME 2025-09-01 21:38:20 double free if already invalidated...
-  (mapcar #'ns:invalidate (draw-ctx-timers (ns:context self))))
-
-(ns:with-event-loop (:waitp t)
-  (let* ((win (make-instance 'ns:window
-                                :rect (ns:in-screen-rect (ns:rect 0 1000 720 450))
-                                :title "Core Graphics demo"))
-         (randoms (coerce (loop for i below 100 collect (random 1.0)) 'vector))
-         (dc (make-draw-ctx :randoms randoms :timers nil))
-         (view (make-instance 'ns:view :context dc))
-         (timer (make-instance 'ns:timer :interval 0.0166 :timer-fn
-                               ;; TODO 2025-08-31 11:31:07 vs setNeedsDisplay ?
-                               (lambda (seconds) (ns:objc view "display")))))
-    (push timer (draw-ctx-timers dc))
-    (setf (ns:content-view win) view)
-    (ns:window-show win)))
-
 ;; ─────────────────────────────────────────────────────────────────── Metal Kit
 (defclass render-pipeline () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Pipeline
   ((cocoa-ref :reader ns::cocoa-ref :initform (mtk::make-render-pipeline-descriptor))
@@ -113,6 +62,49 @@
            ;;(format t "Making new buffer of size ~a.~%" (size self))
            (mtk::new-buffer device (size self) (mode self)))
          "Failed to allocate buffer.")))
+
+(defun parse-vf (vf)
+  (let* ((name (symbol-name vf)))
+    (assert (uiop:string-prefix-p "VERTEXFORMAT" name))
+    (let* ((rest (subseq name 12))
+           (ty (cond ((uiop:string-prefix-p "UCHAR" rest) :uint8)
+                     ((uiop:string-prefix-p "CHAR" rest) :int8)
+                     ((uiop:string-prefix-p "USHORT" rest) :uint16)
+                     ((uiop:string-prefix-p "SHORT" rest) :int16)
+                     ;; TODO half
+                     ((uiop:string-prefix-p "FLOAT" rest) :float)
+                     ((uiop:string-prefix-p "UINT" rest) :uint32)
+                     ((uiop:string-prefix-p "INT" rest) :int32)))
+           (sz (case ty ((:uint8 :int8) 1) ; bytes
+                     ((:uint16 :int16) 2)
+                     (t 4)))
+           (n (cond ((search "2" rest) 2) ; count
+                    ((search "3" rest) 3)
+                    ((search "4" rest) 4)
+                    (t 1)))
+           (norm (uiop:string-suffix-p rest "NORMALIZED"))) ; quirky but understandable arg order
+      (values rest ty sz n norm))))
+
+;;(parse-vf 'VertexFormatFloat2Normalized)
+
+(defmacro make-putfn (vf)
+  (multiple-value-bind (name ty sz n norm) (parse-vf vf)
+    (let* ((fn (intern (format nil "PUT-~aS" name))) ; upper case PUT to prevent symbol name escaping...
+           (fts (cffi:foreign-type-size ty))
+           (v (case ty (:float `(coerce (elt vals i) 'single-float))
+                    (t `(elt vals i)))))
+      `(defmethod ,fn ((self buffer-handle) vals &key (offset 0))
+         (let* ((max-size (- (size self) offset))
+                (incoming-n (array-total-size vals))
+                (incoming-size (* ,sz incoming-n)))
+           (assert (zerop (mod incoming-n ,n)) nil "Wrong number of values: ~a not divisible by ~a." incoming-n ,n)
+           (assert (<= incoming-size max-size) nil "Too much data.")
+           (dotimes (i incoming-n) ; FIXME 2025-09-06 22:05:44 alignment when offset; pad if necessary!
+             (setf (cffi:mem-ref (contents self) ,ty (+ offset (* i ,fts))) ,v))
+           (ns:objc self "didModifyRange:" (:struct ns:range) (ns:range offset (+ offset incoming-size))))))))
+
+(make-putfn VertexFormatFloat3)
+;; (make-putfn VertexFormatShort)
 
 (defmethod fill-buffer ((self buffer-handle) floats) ; TODO 2025-08-31 22:27:16 other data types!
   ;; TODO 2025-08-17 16:27:37
@@ -276,7 +268,7 @@ general-purpose."))
 
     (make-instance 'ns:timer :interval 0.0166 :timer-fn
                    (lambda (seconds)
-                     (fill-buffer vb (vector 
+                     (put-float3s vb (vector 
                                       0.0  0.9  0.0
                                       ;; NB 2025-09-01 21:57:28 timer behaves differently ~1000x arm64 vs x86-64
                                       (sin (/ seconds 2)) -1.0  0.0
@@ -307,3 +299,54 @@ general-purpose."))
        )
 
 #+nil(uiop/os:getcwd) ; depends on from which buffer sly was started
+
+;; ─────────────────────────────────────────────────────────────── Core Graphics
+(defstruct draw-ctx randoms timers)
+
+(progn
+  (defmethod ns:draw ((self ns:view))
+    (let* ((ctx (ns:current-cg-context))
+           (dc (ns:context self))
+           (re 0)
+           (w (ns:width self))
+           (h (ns:height self))
+           (r (ns:rect 0 0 w h))
+           (wobble-max 0.05)) ; displacement
+      (flet ((wobble (d) ; wobble using time around stable random fractions
+               (let ((rand-frac (elt (draw-ctx-randoms dc) (incf re))))
+                 (* d (+ (* (sin (* 2 pi (real-time))) wobble-max) ; period of one second
+                         (* rand-frac (- 1.0 (* 2 wobble-max))) ; fit don't clamp
+                         wobble-max)))))
+        ;;(format t "bounds ~a~%" (cg:display-bounds 0))
+        (cg:set-rgb-fill-color ctx (wobble 1.0) (wobble 1.0) (wobble 1.0))
+        (cg:fill-rect ctx r)
+        (cg:set-line-width ctx 10.0)
+        (cg:set-rgb-stroke-color ctx (wobble 1.0) (wobble 1.0) (wobble 1.0))
+        (cg:move-to-point ctx (wobble w) (wobble h))
+        (cg:add-line-to-point ctx (+ w (wobble (- w))) (wobble h))
+        (cg:add-curve-to-point ctx (wobble w) (wobble h)
+                               (wobble w) (wobble h)
+                               (wobble w) (wobble h))
+        (cg:stroke-path ctx))))
+  (display-all)) ; redundant refresh when auto-updating...
+
+(defmethod ns:release ((self ns:view))
+  ;; FIXME 2025-08-31 11:03:41 doesn't always fire in time
+  ;; ...giving "no applicable method for timer-fn when called with nil"
+  (format t "Controlled destruction of ~a~%" self)
+  ;; FIXME 2025-09-01 21:38:20 double free if already invalidated...
+  (mapcar #'ns:invalidate (draw-ctx-timers (ns:context self))))
+
+(ns:with-event-loop (:waitp t)
+  (let* ((win (make-instance 'ns:window
+                                :rect (ns:in-screen-rect (ns:rect 0 1000 720 450))
+                                :title "Core Graphics demo"))
+         (randoms (coerce (loop for i below 100 collect (random 1.0)) 'vector))
+         (dc (make-draw-ctx :randoms randoms :timers nil))
+         (view (make-instance 'ns:view :context dc))
+         (timer (make-instance 'ns:timer :interval 0.0166 :timer-fn
+                               ;; TODO 2025-08-31 11:31:07 vs setNeedsDisplay ?
+                               (lambda (seconds) (ns:objc view "display")))))
+    (push timer (draw-ctx-timers dc))
+    (setf (ns:content-view win) view)
+    (ns:window-show win)))
