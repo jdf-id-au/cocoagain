@@ -194,7 +194,11 @@
 (defun set-vertex-descriptor (pipeline-descriptor vertex-descriptor)
   (ns:objc pipeline-descriptor "setVertexDescriptor:" :pointer vertex-descriptor))
 
-(defun set-color-attachment-pixel-format (pipeline-descriptor index pixel-format)
+(defun set-color-attachment-pixel-format (pipeline-descriptor index
+                                          &optional
+                                            (pixel-format
+                                             #+x86-64 mtl::PixelFormatA8Unorm
+                                             #+arm64 mtl::PixelFormatBGRA8Unorm))
   (let* ((color-attachment
 	   (ns:objc (ns:objc pipeline-descriptor "colorAttachments" :pointer)
 		    "objectAtIndexedSubscript:" :int index :pointer)))

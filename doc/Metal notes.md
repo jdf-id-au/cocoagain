@@ -22,7 +22,7 @@ render pipeline .
   - vertex descriptor .
   - command queue .
 
-vertex descriptor .
+[vertex descriptor](https://metalbyexample.com/vertex-descriptors/) .
   - attribute ... format, offset, index into buffer
   - layout ... stride, step rate, step function
 

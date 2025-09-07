@@ -102,7 +102,7 @@
            (fta (cffi:foreign-type-alignment ty))
            (v (case ty (:float `(coerce (elt vals i) 'single-float))
                     (t `(elt vals i)))))
-      `(defmethod ,fn ((self buffer-handle) vals &key (offset 0))
+      `(defmethod ,fn ((self buffer-handle) vals &key (offset 0)) ; byte offset
          (let* ((max-size (- (size self) offset))
                 (incoming-n (array-total-size vals))
                 (incoming-size (* ,sz incoming-n)))
@@ -113,10 +113,11 @@
            (assert (<= incoming-size max-size) nil "Too much data ~a vs ~a bytes available." incoming-size max-size)
            (dotimes (i incoming-n)
              (setf (cffi:mem-ref (contents self) ,ty (+ offset (* i ,fts))) ,v))
-           ;; for CPU->GPU copy when managed memory:
            ;; TODO 2025-09-07 06:43:31 later synchronizeResource from GPU->CPU (compute shaders...)
+           ;; for CPU->GPU copy when managed memory:
            (ns:objc self "didModifyRange:" (:struct ns:range) (ns:range offset (+ offset incoming-size))))))))
 
+;; eval-when ?
 (make-putfn mtl::VertexFormatFloat3)
 ;; (make-putfn mtl::VertexFormatShort)
 
@@ -233,12 +234,8 @@ general-purpose."))
     (mtk::set-vertex-descriptor pd vd)
     (mtk::set-vertex-descriptor pdp vd)
     
-    (mtk::set-color-attachment-pixel-format pd 0
-                                            #+x86-64 mtl::PixelFormatA8Unorm
-                                            #+arm64 mtl::PixelFormatBGRA8Unorm)
-    (mtk::set-color-attachment-pixel-format pdp 0
-                                            #+x86-64 mtl::PixelFormatA8Unorm
-                                            #+arm64 mtl::PixelFormatBGRA8Unorm)
+    (mtk::set-color-attachment-pixel-format pd 0)
+    (mtk::set-color-attachment-pixel-format pdp 0)
     
     (progn
       (mtk::set-color-attachment-blending-enabled pdp 0 T)
@@ -246,16 +243,15 @@ general-purpose."))
       (mtk::set-color-attachment-blend-factor pdp 0 :dest :rgb mtl::BlendFactorSourceAlpha))
     
     (put-float3s vb #( 0.0  0.9  0.0
-                      -0.7 -1.0  0.0
+                      -0.7 -0.8  0.2
                        1.0 -1.0  0.0))
 
     (make-instance 'ns:timer :interval 0.0166 :timer-fn
                    (lambda (seconds)
-                     (put-float3s vb (vector 
-                                      0.0  0.9  0.0
+                     (put-float3s vb (vector
                                       ;; NB 2025-09-01 21:57:28 timer behaves differently ~1000x arm64 vs x86-64
-                                      (sin (/ seconds 2)) -1.0  0.0
-                                      0.7 -0.6  0.0))))
+                                      (sin (/ seconds 2)) -0.8 0.2)
+                                  :offset srd)))
     
     ;; NB 2025-08-31 09:02:51 MTKView defaults to timer-redraw 60fps, alts available
     (setf (ns:content-view win) view)
