@@ -11,7 +11,7 @@ using namespace metal;
 [[stage_in]] attribute, each element of the per-vertex input must
 specify the vertex attribute location as [[attribute(index)]]. */
 struct VertexIn {
-  float3 position [[attribute(0)]];
+  float3 position [[attribute(1)]];
 };
 
 struct VertexOut {

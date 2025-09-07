@@ -85,11 +85,19 @@
            (norm (uiop:string-suffix-p rest "NORMALIZED"))) ; quirky but understandable arg order
       (values rest ty sz n norm))))
 
-;;(parse-vf 'VertexFormatFloat2Normalized)
+;;(parse-vf 'mtl::VertexFormatFloat2Normalized)
 
+(defun stride (vf)
+  (multiple-value-bind (rest ty sz n norm) (parse-vf vf)
+    (declare (ignorable rest ty norm))
+    (* sz n)))
+
+;; TODO 2025-09-07 06:45:42 config non-asserting for max speed? profile first
 (defmacro make-putfn (vf)
+  "Take constant like mtl::VertexFormatFloat3 and make (put-float3s buf vals &key offset)."
   (multiple-value-bind (name ty sz n norm) (parse-vf vf)
-    (let* ((fn (intern (format nil "PUT-~aS" name))) ; upper case PUT to prevent symbol name escaping...
+    (declare (ignorable norm))
+    (let* ((fn (intern (format nil "PUT-~aS" name))) ; upper case to prevent symbol name escaping...
            (fts (cffi:foreign-type-size ty))
            (fta (cffi:foreign-type-alignment ty))
            (v (case ty (:float `(coerce (elt vals i) 'single-float))
@@ -99,32 +107,18 @@
                 (incoming-n (array-total-size vals))
                 (incoming-size (* ,sz incoming-n)))
            ;; TODO 2025-09-06 23:21:12 verify that this would actually be a problem:
+           ;; Allows internal updates; different to vertex descriptor's offset which has alignment of 4.
            (assert (zerop (mod offset ,fta)) nil "Wrong alignment: ~a not divisible by ~a." offset ,fta)
            (assert (zerop (mod incoming-n ,n)) nil "Wrong number of values: ~a not divisible by ~a." incoming-n ,n)
            (assert (<= incoming-size max-size) nil "Too much data ~a vs ~a bytes available." incoming-size max-size)
            (dotimes (i incoming-n)
              (setf (cffi:mem-ref (contents self) ,ty (+ offset (* i ,fts))) ,v))
+           ;; for CPU->GPU copy when managed memory:
+           ;; TODO 2025-09-07 06:43:31 later synchronizeResource from GPU->CPU (compute shaders...)
            (ns:objc self "didModifyRange:" (:struct ns:range) (ns:range offset (+ offset incoming-size))))))))
 
-(make-putfn VertexFormatFloat3)
-;; (make-putfn VertexFormatShort)
-
-(defmethod fill-buffer ((self buffer-handle) floats) ; TODO 2025-08-31 22:27:16 other data types!
-  ;; TODO 2025-08-17 16:27:37
-  ;; maybe update-subrange for big buffers with small updates...
-  ;; and maybe accommodate shared buffers on arm64...
-  (let* ((buffer-size (size self))
-         (incoming-size (array-total-size floats)) 
-         (range (ns:range 0 buffer-size)))
-    (assert (= (* incoming-size 4) buffer-size) nil "Wrong data size.")
-    (dotimes (i incoming-size)
-      (setf (cffi:mem-aref (contents self) :float i)
-            (coerce (elt floats i) 'single-float)))
-    ;; TODO 2025-08-31 22:50:34
-    ;; for CPU->GPU copy when managed memory:
-    (ns:objc self "didModifyRange:" (:struct ns:range) range)
-    ;; later synchronizeResource from GPU->CPU (compute shaders...)
-    ))
+(make-putfn mtl::VertexFormatFloat3)
+;; (make-putfn mtl::VertexFormatShort)
 
 (defclass mtk-context () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Context manager
   ((view :initarg :view :reader view) ; pass in to allow more obvious initialisation...
@@ -167,23 +161,6 @@ general-purpose."))
     (assert (not index) nil "Buffer ~a already present in position ~a. Continue to return this index." b index)
     (if index index (vector-push-extend b (vertex-buffers self)))))
 
-(defmethod configure-vertex-buffer ((self mtk-context) buffer-index
-                                    &key (pipeline :default) ; DRY vs render-pipeline...
-                                      (format mtl::VertexFormatFloat3)
-                                      (buffer-offset 0)
-                                      (argument-index 0)
-                                      stride
-                                      (step-rate 1)
-                                      (step-function mtl::VertexStepFunctionPerVertex))
-  (assert (<= 1 (1+ buffer-index) (fill-pointer (vertex-buffers self)))
-          (buffer-index) ; <- opportunity to correct
-          "Index ~a doesn't correspond to a vertex buffer." buffer-index)
-  (let* ((pd (render-pipeline self pipeline))
-         (vd (vertex-descriptor pd)))
-    (mtk::set-vertex-descriptor-attribute vd buffer-index format buffer-offset argument-index)
-    (mtk::set-vertex-descriptor-layout vd buffer-index stride step-rate step-function)
-    (mtk::set-vertex-descriptor pd vd)))
-
 (defmethod pipeline-state ((self mtk-context) &optional (pipeline-label :default))
   ;; FIXME 2025-08-31 22:58:37 This will fail if vbs not configured yet. (e.g. draw too early?)
   ;; Should patch through objc workaround of make-render-pipeline-state's error to CL 
@@ -215,7 +192,7 @@ general-purpose."))
       (let* ((ce (mtk::render-command-encoder cb rp)))
         (unwind-protect
              (progn
-               (mtk::set-vertex-buffer ce vb :argument-index 0)
+               (mtk::set-vertex-buffer ce vb)
                (mtk::set-render-pipeline-state ce ps)
                (mtk::draw-primitives ce mtl::PrimitiveTypeTriangle 0 3)
                (mtk::set-render-pipeline-state ce psp)
@@ -241,18 +218,21 @@ general-purpose."))
               ctx (make-instance 'render-pipeline :library library
                                                   :vertex "vertex_ndc"
                                                   :fragment "fragment_lsd")))
+         (vd (vertex-descriptor pd))
          (pdp (add-render-pipeline
                     ctx (make-instance 'render-pipeline :label :point ; not :default
                                                         :library library
                                                         :vertex "vertex_point"
                                                         :fragment "fragment_point")))
-         ;; TODO 2025-08-31 22:28:36 automate a bit!
-         ;; 4 bytes per float, 3 floats per vertex, 3 vertices...
-         (vb (make-instance 'buffer-handle :device (ns:device view) :size (* 4 3 3)))
+         (srd (stride 'mtl::VertexFormatFloat3))
+         (vb (make-instance 'buffer-handle :device (ns:device view) :size (* 3 srd)))
          (vb-index (add-vertex-buffer ctx vb)))
 
-    (configure-vertex-buffer ctx vb-index :stride (* 4 3))
-    (configure-vertex-buffer ctx vb-index :pipeline :point :stride (* 4 3))
+    (mtk::set-vertex-descriptor-attribute vd 1 mtl::VertexFormatFloat3 :index vb-index)
+    (mtk::set-vertex-descriptor-layout vd 0 srd)
+    (mtk::set-vertex-descriptor pd vd)
+    (mtk::set-vertex-descriptor pdp vd)
+    
     (mtk::set-color-attachment-pixel-format pd 0
                                             #+x86-64 mtl::PixelFormatA8Unorm
                                             #+arm64 mtl::PixelFormatBGRA8Unorm)
@@ -265,7 +245,7 @@ general-purpose."))
       (mtk::set-color-attachment-blend-factor pdp 0 :source :rgb mtl::BlendFactorSourceAlpha)
       (mtk::set-color-attachment-blend-factor pdp 0 :dest :rgb mtl::BlendFactorSourceAlpha))
     
-    (fill-buffer vb #( 0.0  0.9  0.0
+    (put-float3s vb #( 0.0  0.9  0.0
                       -0.7 -1.0  0.0
                        1.0 -1.0  0.0))
 
@@ -281,7 +261,7 @@ general-purpose."))
     (setf (ns:content-view win) view)
     (ns:window-show win)))
 
-#+nil(progn ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Events
+#+nil(progn ; ▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚ Events
        (defun scale-cursor (loc dim)
          "Scale cursor to [-1,1]" ; could DISASSEMBLE and optimise...
          (coerce (1- (* (/ loc dim) 2)) 'single-float))
@@ -292,7 +272,7 @@ general-purpose."))
                 (y (scale-cursor location-y (ns:height self)))
                 (vb (elt (vertex-buffers (ns:context self)) 0)))
            ;; NB reader macro for vector #() seemed to quote contents
-           (fill-buffer vb (vector x y 0.0
+           (put-float3s vb (vector x y 0.0
                                    -1.0 -1.0 0.0
                                    (- x) (- y) 0.0))))
 

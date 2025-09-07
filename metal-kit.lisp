@@ -129,20 +129,18 @@
   (ns:objc command-encoder "setDepthStencilState:" :pointer depth-stencil-state))
 
 ;; TODO 2025-08-31 23:19:00 compare with setVertexBufferOffset:atIndex: Updates an entry in the vertex shader argument table with a new location within the entry’s current buffer.
-(defun set-vertex-buffer (command-encoder buffer &key (offset 0) (argument-index 0))
+(defun set-vertex-buffer (command-encoder buffer &key (offset 0) (index 0))
+  "Assigns a buffer to an entry in the vertex shader argument table." ; also see vertex descriptor section
   (ns:objc command-encoder "setVertexBuffer:offset:atIndex:"
            :pointer buffer
            :int offset ; alignment requirements...
-           ;; TOOD 2025-09-02 17:23:48
-           ;; meaning [[id(1)]] ? MSLS 2.13 Argument Buffers
-           ;; or literally vertex shader argument order
-           :int argument-index)) 
+           :int index)) 
 ;; TODO 2025-08-31 23:19:03 setVertexBuffers:offsets:withRange: low priority
 
-(defun set-fragment-buffer (command-encoder buffer &key (offset 0) (argument-index 0))
+(defun set-fragment-buffer (command-encoder buffer &key (offset 0) (index 0))
   (ns:objc command-encoder "setFragmentBuffer:offset:atIndex:" :pointer buffer
 							       :int offset
-							       :int argument-index))
+							       :int index))
 
 (defun set-fragment-texture (command-encoder texture &key (index 0))
   (ns:objc command-encoder "setFragmentTexture:atIndex:" :pointer texture :int index))
@@ -231,26 +229,28 @@
 ;; TODO 2025-08-31 16:11:52 stencilAttachmentPixelFormat vs MTKview depthStencilPixelFormat ?
 
 ;; ─────────────────────────────────────────────────────────── Vertex descriptor
+;; https://metalbyexample.com/vertex-descriptors/
 
 (defun make-vertex-descriptor ()
   (ns:new "MTLVertexDescriptor")) ; TODO 2025-08-16 01:45:11 cleanup after?
 
-(defun set-vertex-descriptor-attribute (vertex-descriptor buffer-index format
-                                        buffer-offset argument-index)
-  (assert (<= 0 buffer-index 31) nil "Index out of range") ; Metal-Feature-Set-Tables.pdf
+(defun set-vertex-descriptor-attribute (vertex-descriptor attribute-index format
+                                        &key (offset 0) (index 0))
+  (assert (<= 0 attribute-index 31) nil "Index out of range") ; Metal-Feature-Set-Tables.pdf
   (let* ((attribute (ns:objc (ns:objc vertex-descriptor "attributes" :pointer)
-                             "objectAtIndexedSubscript:" :int buffer-index :pointer)))
+                             "objectAtIndexedSubscript:" :int attribute-index :pointer)))
     ;; The format of the vertex attribute.
     (ns:objc attribute "setFormat:" :int format)
     ;; The location of an attribute in vertex data, determined by the
     ;; byte offset from the start of the vertex data.
-    (ns:objc attribute "setOffset:" :int buffer-offset)
+    (ns:objc attribute "setOffset:" :int offset)
     ;; The index in the argument table for the associated vertex buffer.
-    (ns:objc attribute "setBufferIndex:" :int argument-index)))
+    (ns:objc attribute "setBufferIndex:" :int index)))
 
-(defun set-vertex-descriptor-layout (vertex-descriptor index stride step-rate step-function)
+(defun set-vertex-descriptor-layout (vertex-descriptor layout-index stride &optional step-rate step-function)
   (let* ((layout (ns:objc (ns:objc vertex-descriptor "layouts" :pointer)
-                          "objectAtIndexedSubscript:" :int index :pointer)))
+                          ;; one layout per buffer when vertex data in multiple buffers
+                          "objectAtIndexedSubscript:" :int layout-index :pointer)))
     ;; The number of bytes between the first byte of two consecutive
     ;; vertices in a buffer. Check the Metal feature set tables (PDF)
     ;; for potential alignment restrictions for stride.
@@ -264,7 +264,8 @@
     ;; new attribute data is fetched for every instance; if stepRate
     ;; is equal to 2, new attribute data is fetched for every two
     ;; instances, and so forth.
-    (ns:objc layout "setStepRate:" :int step-rate)
+    (when step-rate
+      (ns:objc layout "setStepRate:" :int step-rate))
     ;; The circumstances under which the vertex and its attributes are
     ;; presented to the vertex function. The default value is
     ;; MTLVertexStepFunctionPerVertex.
@@ -281,7 +282,8 @@
     ;; If stepFunction is MTLVertexStepFunctionConstant, the function
     ;; fetches attribute data just once, and that attribute data is
     ;; used for every vertex. In this case,stepRate must be set to 0.
-    (ns:objc layout "setStepFunction:" :int step-function)))
+    (when step-function
+      (ns:objc layout "setStepFunction:" :int step-function))))
 
 ;; ────────────────────────────────────────────────────────────── Pipeline state
 
