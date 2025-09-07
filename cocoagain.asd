@@ -19,8 +19,9 @@
                :trivial-main-thread)
   :serial t
   :components ((:file "package")
-               (:file "constants")
                (:file "util")
+               (:file "constants")
+               (:file "simd")
                (:file "id-map")
                (:file "library")
                (:file "core-foundation")

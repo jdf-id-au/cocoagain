@@ -243,14 +243,14 @@ general-purpose."))
       (mtk::set-color-attachment-blend-factor pdp 0 :dest :rgb mtl::BlendFactorSourceAlpha))
     
     (put-float3s vb #( 0.0  0.9  0.0
-                      -0.7 -0.8  0.2
+                      -0.7 -0.8  0.0
                        1.0 -1.0  0.0))
 
     (make-instance 'ns:timer :interval 0.0166 :timer-fn
                    (lambda (seconds)
                      (put-float3s vb (vector
                                       ;; NB 2025-09-01 21:57:28 timer behaves differently ~1000x arm64 vs x86-64
-                                      (sin (/ seconds 2)) -0.8 0.2)
+                                      (sin (/ seconds 2)) -0.8 0.0)
                                   :offset srd)))
     
     ;; NB 2025-08-31 09:02:51 MTKView defaults to timer-redraw 60fps, alts available

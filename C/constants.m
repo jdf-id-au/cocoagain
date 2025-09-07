@@ -1,6 +1,7 @@
 #include <stdio.h> // printf
 #include <string.h>
-#import "view.h"
+#import <Metal/Metal.h>
+#import <Spatial/Spatial.h>
 
 #define countof(arrayptr) sizeof(arrayptr) / sizeof(*(arrayptr))
 
@@ -51,6 +52,8 @@ SPELL_ENUMS(MTLTriangleFillModeFill, MTLTriangleFillModeLines,
             MTLPixelFormatA8Unorm, MTLPixelFormatBGRA8Unorm,
 
             MTLBlendFactorZero, MTLBlendFactorOne, MTLBlendFactorSourceAlpha, MTLBlendFactorDestinationAlpha, MTLBlendFactorBlendAlpha,
+
+            SPAxisX, SPAxisY, SPAxisZ, 
             );
 
 struct elision {
@@ -60,6 +63,7 @@ struct elision {
 struct elision elide[] = {
   {"NS", "cocoagain", "ns"}, // default, no defpackage
   {"MTL", "metal", "mtl"},
+  {"SP", "spatial", "sp"}
 };
 
 int main(void) {

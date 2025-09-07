@@ -5,7 +5,8 @@ CFLAGS=-std=c17 -g3 -pedantic -Wall -Wextra \
 OBJCFLAGS=-fno-objc-arc -fmodules -mmacos-version-min=12.4
 
 FRAMEWORKS=-framework Cocoa -framework QuartzCore \
--framework Metal -framework MetalKit
+-framework Metal -framework MetalKit \
+-framework Accelerate
 
 ../libcocoagain.dylib: application.m window.m view.m timer.m
 	cc -dynamiclib $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) $^ -o $@

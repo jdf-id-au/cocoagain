@@ -1,7 +1,12 @@
+(defpackage :util
+  (:use :cl)
+  (:export
+   #:bidi-ffi))
+
 (defpackage :cocoagain
   (:documentation "Closely after byulparan/cl-nextstep etc. Reimplemented for learning.")
   (:nicknames :ns)
-  (:use :cl :alexandria)
+  (:use :cl :alexandria :util)
   (:export ; ugh tedious to maintain, also see metal direct export technique
    #:protect
    #:objc
@@ -42,7 +47,7 @@
 
 (defpackage :core-graphics
   (:nicknames :cg)
-  (:use cl)
+  (:use :cl)
   (:export
    #:set-rgb-fill-color
    #:set-line-width
@@ -56,4 +61,10 @@
 
 (defpackage :metal-kit
   (:nicknames :mtk)
-  (:use cl))
+  (:use :cl :util))
+
+(defpackage :spatial
+  (:use :cl :util))
+
+(defpackage :simd
+  (:use :cl))

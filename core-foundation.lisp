@@ -126,46 +126,9 @@
 
 ;; ─────────────────────────────────────────────────────────────────── Structure
 
-(cffi:defcstruct (range :class %range) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ range
-  (location :unsigned-long) (length :unsigned-long)) ; nominally impl detail rather than official interface
-
-(defstruct (range (:constructor range (location length))) location length)
-
-(defmethod cffi:translate-from-foreign (p (type %range))
-  (cffi:with-foreign-slots ((location length) p (:struct range)) (range location length)))
-
-(defmethod cffi:translate-into-foreign-memory (range (type %range) p)
-  (cffi:with-foreign-slots ((location length) p (:struct range))
-    ;;(format t "Trying to set NSRange with ~a~%" range)
-    (setf location (range-location range) ; TODO 2025-08-30 07:59:46 overflow check?
-          length (range-length range))))
-
-(cffi:defcstruct (point :class %point) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ point
-  (x :double) (y :double))
-
-(defstruct (point (:constructor point (x y))) x y)
-
-(defmethod cffi:translate-from-foreign (p (type %point))
-  (cffi:with-foreign-slots ((x y) p (:struct point)) (point x y)))
-
-(defmethod cffi:translate-into-foreign-memory (point (type %point) p)
-  (cffi:with-foreign-slots ((x y) p (:struct point))
-    (setf x (coerce (point-x point) 'double-float)
-          y (coerce (point-y point) 'double-float))))
-
-(cffi:defcstruct (size :class %size) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ size
-  (width :double) (height :double))
-
-(defstruct (size (:constructor size (width height))) width height)
-
-(defmethod cffi:translate-from-foreign (p (type %size))
-  (cffi:with-foreign-slots ((width height) p (:struct size)) (size width height)))
-
-(defmethod cffi:translate-into-foreign-memory (size (type %size) p)
-  (cffi:with-foreign-slots ((width height) p (:struct size))
-    (setf width (coerce (size-width size) 'double-float)
-          height (coerce (size-height size) 'double-float))))
-
+(bidi-ffi range location :unsigned-long length :unsigned-long) ; ╴╴╴╴╴╴╴╴╴ range
+(bidi-ffi point x :double y :double) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ point
+(bidi-ffi size width :double height :double) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ size
 (cffi:defcstruct (rect :class %rect) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ rect
   (origin (:struct point)) (size (:struct size)))
 
