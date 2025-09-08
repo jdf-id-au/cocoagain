@@ -46,8 +46,6 @@
 ;; affine-transform : double4x3 matrix
 ;; projective-transform: double4x4 matrix (column-major)
 
-
-
 ;; spherical-coordinates: double radius, angle inclination azimuth
 
 #+nil(progn ; TODO 2025-09-07 23:03:36 oh so painful
@@ -75,9 +73,12 @@
        ;; ────────────────────────────────────────────────────── Indirect method
 
        ;; Could potientially also reuse managed buffer allocated for Metal use...!
-       (cffi:with-foreign-objects ((inbuf :double 100) ; possibly on the stack
-                                   (outbuf :double 100)
-                                   (resbuf :double 100))
+       (cffi:with-foreign-objects ((scale :double 4) ; possibly on the stack
+                                   (rot :double 4)
+                                   (trans :double 4)
+                                   (aff :double 16)
+                                   (vec-in :double 4)
+                                   (vec-out :double 4))
          (let* ((args #(2.0 2.0 2.0 0.0 ; scale x y z
                         0.0 0.0 0.0 1.0 ; rot   a b c d
                         0.2 0.3 0.4 0.0 ; trans x y z
@@ -96,4 +97,23 @@
            ;;(loop for i below n collect (cffi:mem-aref outbuf :double i))
            (loop for i below 3 collect (cffi:mem-aref resbuf :double i))
            ))
+
+       (with-arena (scratch 100 :double)
+         (let* ((scale (put scratch :double #(2 2 0 0)))
+                (rot (put scratch :double #(0 0 0 1)))
+                (trans (put scratch :double #(0.2 0.3 0.4 0)))
+                (aff (alloc scratch 16 :double))
+                (vec-in (put scratch :double #(1 1 0 0)))
+                (vec-out (alloc scratch 4 :double)))
+           (cffi:foreign-funcall "indirectSPAffineTransform3DMake"
+                                 :pointer scale
+                                 :pointer rot
+                                 :pointer trans
+                                 :pointer aff)
+           (cffi:foreign-funcall "indirectSPVector3DApplyAffineTransform"
+                                 :pointer vec-in
+                                 :pointer aff
+                                 :pointer vec-out)
+           (show vec-out)))
+       
        )

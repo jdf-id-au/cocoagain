@@ -61,7 +61,7 @@
                           )))
 
 (defmacro with-event-loop ((&key (waitp nil)) &body body)
-  (alexandria:with-gensyms (result semaphore id)
+  (alexandria:with-gensyms (result semaphore id) ; semaphore unused
     `(cond ((eql (trivial-main-thread:main-thread) (bt:current-thread))
             (progn ,@body))
            (,waitp (let* ((,result nil)

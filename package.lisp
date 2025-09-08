@@ -1,7 +1,15 @@
 (defpackage :util
   (:use :cl)
   (:export
-   #:bidi-ffi))
+   #:bidi-ffi
+   #:arena
+   #:index
+   #:avail
+   #:alloc
+   #:put
+   #:show
+   #:free
+   #:with-arena))
 
 (defpackage :cocoagain
   (:documentation "Closely after byulparan/cl-nextstep etc. Reimplemented for learning.")
