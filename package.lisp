@@ -1,5 +1,6 @@
 (defpackage :util
   (:use :cl)
+  (:nicknames :ut)
   (:export
    #:bidi-ffi
    #:arena
@@ -14,7 +15,7 @@
 (defpackage :cocoagain
   (:documentation "Closely after byulparan/cl-nextstep etc. Reimplemented for learning.")
   (:nicknames :ns)
-  (:use :cl :alexandria :util)
+  (:use :cl :alexandria)
   (:export ; ugh tedious to maintain, also see metal direct export technique
    #:protect
    #:objc
@@ -69,10 +70,10 @@
 
 (defpackage :metal-kit
   (:nicknames :mtk)
-  (:use :cl :util))
+  (:use :cl))
 
 (defpackage :spatial
-  (:use :cl :util))
+  (:use :cl))
 
 (defpackage :simd
   (:use :cl))

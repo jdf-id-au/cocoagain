@@ -126,9 +126,9 @@
 
 ;; ─────────────────────────────────────────────────────────────────────── Types
 
-(bidi-ffi range location :unsigned-long length :unsigned-long)
-(bidi-ffi point x :double y :double)
-(bidi-ffi size width :double height :double)
+(ut:bidi-ffi range location :unsigned-long length :unsigned-long)
+(ut:bidi-ffi point x :double y :double)
+(ut:bidi-ffi size width :double height :double)
 
 (cffi:defcstruct (rect :class %rect)
   (origin (:struct point)) (size (:struct size)))

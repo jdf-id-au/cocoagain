@@ -1,6 +1,6 @@
 ;; after byulparan/cl-nextstep, slower so I can understand
 
-;; load (don't eval) this i.e. asdf:load-system
+;; load (vs eval) this i.e. asdf:load-system
 ;; check sly inferior-lisp for ffi hang diagnostics
 
 ;; Pretend to be in an .app!

@@ -24,7 +24,7 @@
                          `(,p (,(intern-format "~a-~a" name p) ,name)))))))))
 
 (defclass arena () ; ───────────────────────────────────────────────────── Arena
-  ((pointer :accessor pointer)
+  ((pointer :accessor pointer :initform nil)
    (size :accessor size :initform 0 :documentation "Size in bytes")
    (cur :accessor cur :initform 0 :documentation "Cursor offset within arena in bytes: first available byte.")))
 

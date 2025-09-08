@@ -4,9 +4,9 @@
 
 ;; Also see :spatial and :core-foundation packages.
 
-(bidi-ffi origin x :unsigned-long y :unsigned-long z :unsigned-long)
-(bidi-ffi size width :unsigned-long height :unsigned-long depth :unsigned-long)
-(bidi-ffi viewport
+(ut:bidi-ffi origin x :unsigned-long y :unsigned-long z :unsigned-long)
+(ut:bidi-ffi size width :unsigned-long height :unsigned-long depth :unsigned-long)
+(ut:bidi-ffi viewport
           x :double
           y :double
           width :double

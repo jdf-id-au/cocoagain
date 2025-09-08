@@ -5,12 +5,12 @@
 ;; NB 2025-09-08 08:29:56 Is it worth doing all this labour just for a math lib?
 ;; ─────────────────────────────────────────────────────────────────────── Types
 ;; Also see core-foundation.lisp
-(bidi-ffi angle radians :double)
-(bidi-ffi rotation-axis x :double y :double z :double pad :double)
-(bidi-ffi rotation a :double b :double c :double d :double) ; quaternion
-(bidi-ffi point x :double y :double z :double pad :double)
-(bidi-ffi vec x :double y :double z :double pad :double) ; `vector` is taken
-(bidi-ffi size width :double height :double depth :double pad :double)
+(ut:bidi-ffi angle radians :double)
+(ut:bidi-ffi rotation-axis x :double y :double z :double pad :double)
+(ut:bidi-ffi rotation a :double b :double c :double d :double) ; quaternion
+(ut:bidi-ffi point x :double y :double z :double pad :double)
+(ut:bidi-ffi vec x :double y :double z :double pad :double) ; `vector` is taken
+(ut:bidi-ffi size width :double height :double depth :double pad :double)
 
 (cffi:defcstruct (rect :class %rect) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ (3d) rect
   (origin (:struct point)) (size (:struct size)))
@@ -48,13 +48,10 @@
 
 ;; spherical-coordinates: double radius, angle inclination azimuth
 
-#+nil(progn ; TODO 2025-09-07 23:03:36 oh so painful
-
+#+nil(progn ; ────────────────────────────────────────────────────── Wrap method
        (ql:quickload :cocoagain)
-       
-       (cffi:load-foreign-library "libSpatial.dylib") ; doesn't actually exist? despite libSpatial.tbd contents? header only??
-
-       ;; ────────────────────────────────────────────────────────── Wrap method
+       (in-package :spatial)
+       ;;(cffi:load-foreign-library "libSpatial.dylib") ; doesn't actually exist? despite libSpatial.tbd contents? header only??
        (cffi:defcfun ("wrapSPVector3DApplyAffineTransform" vec-apply-affine-transform)
            (:struct vec) (v (:struct vec)) (mat4x3 :pointer))
 
@@ -64,47 +61,32 @@
          (rotation (:struct rotation))
          (translation (:struct vec)))
 
+       ;; Improbably tiny values e.g. 1.6...d-315 (unless rot wrong...)
        (vec-apply-affine-transform
         (vec 1.0d0 1.0d0 1.0d0 0.0d0)
         (affine-transform (size 2.0d0 2.0d0 2.0d0 0.0d0)
                           (rotation 0.0d0 0.0d0 0.0d0 1.0d0)
                           (vec 0.2d0 0.3d0 0.4d0 0.0d0)))
+       
+       
+       ;; Returns v-close to indirect method:
+       (format t "arrgh ~a~%" (ut:fetch (affine-transform
+                                         (size 2.0d0 2.0d0 2.0d0 0.0d0)
+                                         (rotation 0.0d0 0.0d0 0.0d0 1.0d0)
+                                         (vec 0.2d0 0.3d0 0.4d0 0.0d0))
+                                        16 :double))
+       )
+#+nil(progn ; ────────────────────────────────────────────────── Indirect method
+       (ql:quickload :cocoagain)
+       (in-package :spatial)
 
-       ;; ────────────────────────────────────────────────────── Indirect method
-
-       ;; Could potientially also reuse managed buffer allocated for Metal use...!
-       (cffi:with-foreign-objects ((scale :double 4) ; possibly on the stack
-                                   (rot :double 4)
-                                   (trans :double 4)
-                                   (aff :double 16)
-                                   (vec-in :double 4)
-                                   (vec-out :double 4))
-         (let* ((args #(2.0 2.0 2.0 0.0 ; scale x y z
-                        0.0 0.0 0.0 1.0 ; rot   a b c d
-                        0.2 0.3 0.4 0.0 ; trans x y z
-                        ))
-                (_ (dotimes (i (array-total-size args))
-                     (setf (cffi:mem-aref inbuf :double i)
-                           (coerce (elt args i) 'double-float))))
-                (n (cffi:foreign-funcall "indirectSPAffineTransform3DMake"
-                                         :pointer inbuf
-                                         :pointer outbuf
-                                         :int32))
-                (m (cffi:foreign-funcall "indirectSPVector3DApplyAffineTransform"
-                                         :pointer outbuf
-                                         :pointer resbuf
-                                         :int32)))
-           ;;(loop for i below n collect (cffi:mem-aref outbuf :double i))
-           (loop for i below 3 collect (cffi:mem-aref resbuf :double i))
-           ))
-
-       (with-arena (scratch 100 :double)
-         (let* ((scale (put scratch :double #(2 2 0 0)))
-                (rot (put scratch :double #(0 0 0 1)))
-                (trans (put scratch :double #(0.2 0.3 0.4 0)))
-                (aff (alloc scratch 16 :double))
-                (vec-in (put scratch :double #(1 1 0 0)))
-                (vec-out (alloc scratch 4 :double)))
+       (ut:with-arena (scratch 100 :double)
+         (let* ((scale (ut:put scratch :double #(2 2 2 0)))
+                (rot (ut:put scratch :double #(0 0 0 1)))
+                (trans (ut:put scratch :double #(0.2 0.3 0.4 0)))
+                (aff (ut:alloc scratch 16 :double))
+                (vec-in (ut:put scratch :double #(1 1 1 0)))
+                (vec-out (ut:alloc scratch 4 :double)))
            (format t "About to try aff make with ~a ~a ~a ~a" scale rot trans aff)
            (cffi:foreign-funcall "indirectSPAffineTransform3DMake"
                                  :pointer scale
@@ -113,14 +95,14 @@
                                  :pointer aff
                                  :int)
            (format t "...success~%")
-           (format t "~a~%" (fetch aff 16 :double))
+           (format t "aff ~a~%" (ut:fetch aff 16 :double))
            (format t "About to try aff trans with ~a ~a ~a" vec-in aff vec-out)
+           ;; FIXME 2025-09-08 17:58:45 Unhandled memory fault at #x0. Wish I understood why! Pointed-at things are fetchable.
            (cffi:foreign-funcall "indirectSPVector3DApplyAffineTransform"
                                  :pointer vec-in
                                  :pointer aff
                                  :pointer vec-out
                                  :int)
            (format t "...success~%")
-           (format t "~a~%" (fetch vec-out 4 :double))))
-       
+           (format t "~a~%" (ut:fetch vec-out 4 :double))))
        )
