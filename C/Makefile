@@ -1,6 +1,10 @@
 CFLAGS=-std=c17 -g3 -pedantic -Wall -Wextra \
--fPIC
-# -fsanitize=address,undefined
+-fPIC \
+-march=native
+# ...increases likelihood of using appropriate SIMD?
+# need -O something too? -ffast-math? no?
+# -fsanitize=address,undefined # asan breaks cffi iirc
+
 
 OBJCFLAGS=-fno-objc-arc -fmodules -mmacos-version-min=13.0
 
