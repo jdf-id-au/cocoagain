@@ -7,7 +7,7 @@
    #:avail
    #:alloc
    #:put
-   #:show
+   #:fetch
    #:free
    #:with-arena))
 

@@ -19,15 +19,15 @@ SPVector3D wrapSPVector3DApplyAffineTransform(SPVector3D vector,
 
 
 // TODO 2025-09-08 10:11:28 Caller allocates.
-// Just because painful to spell out so many mundane structs of doubles in cffi.
-// Might be able to avoid some copying etc. Vulnerable to API change!
+// Because painful to spell out so many mundane structs of doubles in cffi.
+// Might be able to avoid some copying, reuse existing buffer, etc.
+// Vulnerable to API change!
 int32_t indirectSPVector3DApplyAffineTransform(SPVector3D *vector,
                                                SPAffineTransform3D *transform,
                                                SPVector3D *out) {
   *out = SPVector3DApplyAffineTransform(*vector, *transform);
   return sizeof(SPVector3D) / sizeof(double);
 }
-
 
 int32_t indirectSPAffineTransform3DMake(SPSize3D *scale,
                                         SPRotation3D *rotation,

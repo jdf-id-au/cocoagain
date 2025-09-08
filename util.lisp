@@ -58,6 +58,7 @@
          (req (+ pad (* (cffi:foreign-type-size type) count))))
     (assert (<= req (avail self)) nil "Out of arena memory: ~a avail ~a requested (including padding)." (avail self) req)
     (incf (cur self) req)
+    ;;(format t "Allocating ~a ~as~%" count type)
     (index self (+ prev pad))))
 
 (defmethod put ((self arena) type vals)
@@ -71,10 +72,12 @@
                  (:double (lambda (v) (coerce v 'double-float)))
                  (t (lambda (v) (identity v))))))
     ;; TODO 2025-09-08 16:13:29 use ARRAY-ELEMENT-TYPE somehow?
+    ;;(format t "About to put ~a ~a into ~a" type vals at)
     (dotimes (i count) (setf (cffi:mem-aref at type i) (funcall coer (elt vals i))))
+    ;;(format t "...success~%")
     at))
 
-(defun show (pointer count &optional (as-type :char))
+(defun fetch (pointer count &optional (as-type :char))
   "No bounds or type checking!"
   (loop for i below count
         collect (cffi:mem-aref pointer as-type i)))

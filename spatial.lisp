@@ -105,15 +105,22 @@
                 (aff (alloc scratch 16 :double))
                 (vec-in (put scratch :double #(1 1 0 0)))
                 (vec-out (alloc scratch 4 :double)))
+           (format t "About to try aff make with ~a ~a ~a ~a" scale rot trans aff)
            (cffi:foreign-funcall "indirectSPAffineTransform3DMake"
                                  :pointer scale
                                  :pointer rot
                                  :pointer trans
-                                 :pointer aff)
+                                 :pointer aff
+                                 :int)
+           (format t "...success~%")
+           (format t "~a~%" (fetch aff 16 :double))
+           (format t "About to try aff trans with ~a ~a ~a" vec-in aff vec-out)
            (cffi:foreign-funcall "indirectSPVector3DApplyAffineTransform"
                                  :pointer vec-in
                                  :pointer aff
-                                 :pointer vec-out)
-           (show vec-out)))
+                                 :pointer vec-out
+                                 :int)
+           (format t "...success~%")
+           (format t "~a~%" (fetch vec-out 4 :double))))
        
        )
