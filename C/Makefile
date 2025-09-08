@@ -2,13 +2,13 @@ CFLAGS=-std=c17 -g3 -pedantic -Wall -Wextra \
 -fPIC
 # -fsanitize=address,undefined
 
-OBJCFLAGS=-fno-objc-arc -fmodules -mmacos-version-min=12.4
+OBJCFLAGS=-fno-objc-arc -fmodules -mmacos-version-min=13.0
 
 FRAMEWORKS=-framework Cocoa -framework QuartzCore \
 -framework Metal -framework MetalKit \
 -framework Accelerate
 
-../libcocoagain.dylib: application.m window.m view.m timer.m
+../libcocoagain.dylib: application.m window.m view.m timer.m spatial.m
 	cc -dynamiclib $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) $^ -o $@
 
 constants: constants.m

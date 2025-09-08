@@ -1,6 +1,6 @@
 ;; after byulparan/cl-nextstep, slower so I can understand
 
-;; load (vs eval) this i.e. asdf:load-system
+;; load (don't eval) this i.e. asdf:load-system
 ;; check sly inferior-lisp for ffi hang diagnostics
 
 ;; Pretend to be in an .app!
@@ -22,6 +22,7 @@
                (:file "util")
                (:file "constants")
                (:file "simd")
+               (:file "spatial")
                (:file "id-map")
                (:file "library")
                (:file "core-foundation")

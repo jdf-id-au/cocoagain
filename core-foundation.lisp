@@ -124,12 +124,13 @@
 	   :double (float a 1.0d0)
 	   :pointer))
 
-;; ─────────────────────────────────────────────────────────────────── Structure
+;; ─────────────────────────────────────────────────────────────────────── Types
 
-(bidi-ffi range location :unsigned-long length :unsigned-long) ; ╴╴╴╴╴╴╴╴╴ range
-(bidi-ffi point x :double y :double) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ point
-(bidi-ffi size width :double height :double) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ size
-(cffi:defcstruct (rect :class %rect) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ rect
+(bidi-ffi range location :unsigned-long length :unsigned-long)
+(bidi-ffi point x :double y :double)
+(bidi-ffi size width :double height :double)
+
+(cffi:defcstruct (rect :class %rect)
   (origin (:struct point)) (size (:struct size)))
 
 (defstruct (rect (:constructor rect (x y width height))) x y width height)
@@ -152,6 +153,7 @@
               height (coerce (rect-height rect) 'double-float))))))
 
 ;; ─────────────────────────────────────────────────────────────────────── Timer
+
 (defvar *timer-table* (make-hash-table))
 
 (cffi:defcallback timer-callback :void ((id :int) (seconds :double))

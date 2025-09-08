@@ -2,6 +2,8 @@
 
 ;; ─────────────────────────────────────────────────────────────────────── Types
 
+;; Also see :spatial and :core-foundation packages.
+
 (bidi-ffi origin x :unsigned-long y :unsigned-long z :unsigned-long)
 (bidi-ffi size width :unsigned-long height :unsigned-long depth :unsigned-long)
 (bidi-ffi viewport
