@@ -80,6 +80,15 @@
        (ql:quickload :cocoagain)
        (in-package :spatial)
 
+       ;; Reload lib... doesn't seem to reload? despite claim
+       (cffi:load-foreign-library
+        (let ((path 
+                (concatenate 'string
+                             (namestring (asdf:system-source-directory :cocoagain))
+                             "libcocoagain.dylib")))
+          (format t "~%Loading ~a~%" path)
+          path))
+
        (ut:with-arena (scratch 100 :double)
          (let* ((scale (ut:put scratch :double #(2 2 2 0)))
                 (rot (ut:put scratch :double #(0 0 0 1)))
