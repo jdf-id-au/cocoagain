@@ -36,8 +36,7 @@
         (assert (eq type :char) nil "Count must be in bytes if using an existing buffer (not ~a)." type)
         (setf (pointer self) using
               (size self) count))
-      ;; FIXME 2025-09-08 14:02:47 alloc failure behaviour?
-      (setf (pointer self) (cffi:foreign-alloc type :count count) 
+      (setf (pointer self) (cffi:foreign-alloc type :count count) ; failure handled in cffi->sbcl impl 
             (size self) (* (cffi:foreign-type-size type) count))))
 
 (defmethod index ((self arena) count &optional (type :char))
@@ -53,7 +52,7 @@
 (defmethod alloc ((self arena) count &optional (type :char))
   "Allocate within arena, returning pointer."
   (let* ((align (cffi:foreign-type-alignment type))
-         (pad (- align (mod (cur self) align))) ; Assumes (pointer self) at suitable alignment (if not, rewrite with cur as a ptr)
+         (pad (- align (mod (cur self) align))) ; FIXME 2025-09-09 20:49:11 this alignment might not work if original foreign-alloc as small type
          (prev (cur self))
          (req (+ pad (* (cffi:foreign-type-size type) count))))
     (assert (<= req (avail self)) nil "Out of arena memory: ~a avail ~a requested (including padding)." (avail self) req)
@@ -81,6 +80,10 @@
   "No bounds or type checking!"
   (loop for i below count
         collect (cffi:mem-aref pointer as-type i)))
+
+(defmethod reset ((self arena))
+  "Arena antipattern to prevent pointless freeing/reallocation. Be careful!"
+  (setf (cur self) 0))
 
 (defmethod free ((self arena))
   "Free whole arena."

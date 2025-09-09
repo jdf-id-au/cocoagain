@@ -2,7 +2,11 @@
 
 (in-package :spatial)
 
-;; TODO API for efficient use of indirect fns
+;; TODO 2025-09-09 21:48:29 or could use cffi:with-foreign-pointer and
+;; constant size to stack-allocate...
+
+;; TODO 2025-09-09 21:49:05 also consider cffi:with-pointer-to-vector-data and
+;; (make-array 20 :element-type 'double-float)
 
 #+nil(progn ; ────────────────────────────────────────────────── Indirect method
        (ql:quickload :cocoagain)

@@ -3,7 +3,7 @@ CFLAGS=-std=c17 -g3 -pedantic -Wall -Wextra \
 -march=native
 # ...increases likelihood of using appropriate SIMD?
 # need -O something too? -ffast-math? no?
-# -fsanitize=address,undefined # asan breaks cffi iirc
+# -fsanitize=address,undefined # asan breaks cffi iirc; maybe fixed libffi 3.4.7?
 
 
 OBJCFLAGS=-fno-objc-arc -fmodules -mmacos-version-min=13.0

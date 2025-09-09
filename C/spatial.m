@@ -1,6 +1,18 @@
 #include <stdio.h>
 #import <Spatial/Spatial.h>
 
+// FIXME 2025-09-09 22:19:35 I think all this junk might be because
+// cffi can't call into clang's mangled
+// __attribute((__overloadable__)) definitions? Can't work out how to
+// disable the attribute_overloadable extension... Bit unclear what
+// exactly is overladed about them, also!
+
+// have a look at otool -tv libcocoagain.dylib: vector asm for mangled
+// fns! I can't divine the correct signatures though; selectively
+// included from Spatial.h etc
+
+// objdump -t for mangled symbols
+
 // ──────────────────────────────────────────────────────────────────── Rotation
 
 bool indirectSPRotation3DIsValid(SPRotation3D *rotation) {
@@ -62,5 +74,3 @@ size_t indirectSPVector3DApplyProjectiveTransform(SPVector3D *vector,
   *out = SPVector3DApplyProjectiveTransform(vector_copy, *transform);
   return sizeof(SPVector3D) / sizeof(double);
 }
-
-// ...TODO 2025-09-08 21:57:52 this really needs some automation...
