@@ -5,8 +5,20 @@
 ;; TODO 2025-09-09 21:48:29 or could use cffi:with-foreign-pointer and
 ;; constant size to stack-allocate...
 
+;; ...or just straightforward cffi:foreign-funcall using vector translators
+;; want C side to have value params (not pointers) so passed by copy
+
 ;; TODO 2025-09-09 21:49:05 also consider cffi:with-pointer-to-vector-data and
 ;; (make-array 20 :element-type 'double-float)
+
+;; ───────────────────────────────────────────────────────────────── Wrap method
+;; Too many identically shaped types...
+(ut:bidi-ffi v4d a :double b :double c :double d :double)
+(ut:bidi-ffi m4x4d ; column-major layout; math convention: row, column
+             aa :double ab :double ac :double ad :double
+             ba :double bb :double bc :double bd :double
+             ca :double cb :double cc :double cd :double
+             da :double db :double dc :double dd :double)
 
 #+nil(progn ; ────────────────────────────────────────────────── Indirect method
        (ql:quickload :cocoagain)
@@ -50,3 +62,4 @@
            ;;(format t "...success~%")
            (ut:fetch vec-out 4 :double)))
        )
+;;(array-element-type (make-array 3 :element-type 'single-float :initial-contents '(0.0 1.0 1.2)))
