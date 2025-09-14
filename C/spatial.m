@@ -1,3 +1,5 @@
+// PENDING DELETION see wrap_spatial.m
+
 #include <stdio.h>
 #import <Spatial/Spatial.h>
 

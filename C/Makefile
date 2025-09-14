@@ -6,13 +6,14 @@ CFLAGS=-std=c17 -g3 -pedantic -Wall -Wextra \
 # -fsanitize=address,undefined # asan breaks cffi iirc; maybe fixed libffi 3.4.7?
 
 
-OBJCFLAGS=-fno-objc-arc -fmodules -mmacos-version-min=13.0
+OBJCFLAGS=-fno-objc-arc -fmodules -mmacos-version-min=15.0
 
 FRAMEWORKS=-framework Cocoa -framework QuartzCore \
 -framework Metal -framework MetalKit \
 -framework Accelerate
 
-../libcocoagain.dylib: application.m window.m view.m timer.m spatial.m
+# Prepare compliation db (for lsp...) with $ bear -- make
+../libcocoagain.dylib: application.m window.m view.m timer.m wrap_spatial.m
 	cc -dynamiclib $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) $^ -o $@
 
 constants: constants.m
@@ -21,7 +22,6 @@ constants: constants.m
 ../constants.lisp: constants
 	./$< > $@
 
-# Prepare compliation db (for lsp...) with $ bear -- make check
 check: check.m ../libcocoagain.dylib
 	cc $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) -lcocoagain -I./ -L../ $< -o $@
 

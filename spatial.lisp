@@ -14,11 +14,31 @@
 ;; ───────────────────────────────────────────────────────────────── Wrap method
 ;; Too many identically shaped types...
 (ut:bidi-ffi v4d a :double b :double c :double d :double)
+(ut:bidi-ffi v8d a :double b :double c :double d :double
+             e :double f :double g :double h :double)
 (ut:bidi-ffi m4x4d ; column-major layout; math convention: row, column
              aa :double ab :double ac :double ad :double
              ba :double bb :double bc :double bd :double
              ca :double cb :double cc :double cd :double
              da :double db :double dc :double dd :double)
+
+;; TODO 2025-09-14 16:23:04 macro for calling wrap_spatial.m fns with ?lisp vectors ?or just structs above
+(defmacro spatial (fname &rest args)
+  `(cffi:foreign-funcall ,(format nil "wrapSP~a" fname)
+                         ,@args))
+
+;; TODO 2025-09-14 22:16:56 cache fn lookup/go into cffi weeds
+;;(spatial "AngleAsin" :double 1.0d0 :double) ; works
+;;(spatial "Rect3DGetCenter" (:struct v8d) (v8d 0.0d0 0.0d0 0.0d0 0.0d0 1.0d0 1.0d0 1.0d0 0.0d0) (:struct v4d)) ; (npe if misspelled)
+
+;;TODO 2025-09-14 22:16:48 lispified names e.g.:
+(defun rect-3d-get-center (origin-size)
+  (spatial "Rect3DGetCenter" (:struct v8d) origin-size (:struct v4d)))
+
+;; TODO 2025-09-14 22:20:44 extract (simplified) types too
+;; (rect-3d-get-center (v8d 0.0d0 0.0d0 0.0d0 0.0d0 1.0d0 1.0d0 1.0d0 0.0d0))
+
+;; TODO 2025-09-14 21:57:33 method for stacking calls without pointless translation
 
 #+nil(progn ; ────────────────────────────────────────────────── Indirect method
        (ql:quickload :cocoagain)

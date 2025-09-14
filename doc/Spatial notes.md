@@ -1,0 +1,1 @@
+`#include <Spatial/Spatial.h>` functions need wrapping because they're mangled from the `__attribute((__overloadable__))` clang extension. Overloading seems mainly to allow Apple's API adjustments over time. Inspect wrapped versions and mangled symbols using `objdump -t libcocoagain.dylib` (or `otool -tv libcocoagain.dylib` for vector asm).
