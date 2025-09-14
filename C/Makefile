@@ -26,7 +26,4 @@ check: check.m ../libcocoagain.dylib
 	cc $(CFLAGS) $(OBJCFLAGS) $(FRAMEWORKS) -lcocoagain -I./ -L../ $< -o $@
 
 spatial_fns.txt:
-	grep -rh "SP[A-Z][a-z]\w* SP[A-Z][a-z]\w*(.*)" \
-/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform\
-/Developer/SDKs/MacOSX.sdk/usr/include/spatial/ \
-| sed "s/ {//" | sort | uniq > spatial_fns.txt
+	./fetch_spatial.sh > spatial_fns.txt
