@@ -94,9 +94,60 @@ file which will need some massaging in response to compiler messages."
                    fn-name
                    (wrap-args params))))
 
+(defun all-types (parsed)
+  (sort
+   (delete-duplicates
+    (loop for (ret-type nil params) in parsed
+          nconc (cons ret-type (loop for (ty nil) in params collect ty)))
+    :test 'equal)
+   #'string-lessp))
+
+(defvar types ;; target types from spatial.lisp bidi-ffi calls
+  '(("double" . :double)
+    ("int" . :int)
+    ("simd_double3" . v3)
+    ("simd_double4x3" . m43)
+    ("simd_double4x4" . m44)
+    ("simd_quatd" . v4)
+    ("SPAffineTransform3D" . m43)
+    ("SPAngle" . angle)
+    ("SPEulerAngles" . euler-angles)
+    ("SPEulerAngleOrder" . :uint32)
+    ("SPPoint3D" . point)
+    ("SPPose3D" . pose)
+    ("SPProjectiveTransform3D" . m44)
+    ("SPRay3D" . ray)
+    ("SPRect3D" . rect)
+    ("SPRotation3D" . rotation)
+    ("SPRotationAxis3D" . rotation-axis)
+    ("SPScaledPose3D" . scaled-pose)
+    ("SPSize3D" . size)
+    ("SPSphericalCoordinates3D" . spherical)
+    ("SPVector3D" . vec)))
+
+(defun convert-type (param)
+  (destructuring-bind (ty p) param
+    (let ((rt (or (cdr (assoc ty types :test 'equal)) :void)))
+      (when rt
+        (if (keywordp rt) rt (list :struct rt))))))
+
+(defun lispify (parsed)
+  (loop for (ret-type fn-name params) in parsed
+          ;; TODO 2025-09-17 08:17:20 Is foreign-funcall-pointer any more direct/cacheable?
+          collect
+          `(cffi:foreign-funcall
+            ,(format nil "wrap~a" fn-name)
+            ,@(map 'list (lambda (p) (convert-type p)) params)
+            ,(convert-type (list ret-type nil))))
+  )
+
 #+nil(;; Output file for massaging and compilation.
       (with-open-file (o "wrap_spatial.m" :direction :output :if-exists :supersede)
         (wrap-fns (parse-file "spatial_fns.txt") o))
-      ;; Create ergonomic lisp fns
+
+      ;; Check types
+      (all-types (parse-file "spatial_fns.txt"))
       
+      ;; Create ergonomic lisp fns
+      (lispify (parse-file "spatial_fns.txt"))
       )

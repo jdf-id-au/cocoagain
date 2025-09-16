@@ -4,43 +4,10 @@
 
 ;; Also see :spatial and :core-foundation packages.
 
-(ut:bidi-ffi origin x :unsigned-long y :unsigned-long z :unsigned-long)
-(ut:bidi-ffi size width :unsigned-long height :unsigned-long depth :unsigned-long)
-(ut:bidi-ffi viewport
-          x :double
-          y :double
-          width :double
-          height :double
-          near :double
-          far :double)
-
-(cffi:defcstruct (region :class %region)
-  (origin (:struct origin))
-  (size (:struct size)))
-
-(defstruct (region (:constructor region (x y z width height depth)))
-  x y z width height depth)
-
-(defmethod cffi:translate-from-foreign (p (type %region))
-  (cffi:with-foreign-slots ((origin size) p (:struct region))
-    (region (origin-x origin)
-            (origin-y origin)
-            (origin-z origin)
-            (size-width size)
-            (size-height size)
-            (size-depth size))))
-
-(defmethod cffi:translate-into-foreign-memory (region (type %region) p)
-  (let* ((origin (cffi:foreign-slot-pointer p '(:struct region) 'origin))
-         (size (cffi:foreign-slot-pointer p '(:struct region) 'size)))
-    (cffi:with-foreign-slots ((x y z) origin (:struct origin))
-      (cffi:with-foreign-slots ((width height depth) size (:struct size))
-        (setf x (region-x region)
-              y (region-y region)
-              z (region-z region)
-              width (region-width region)
-              height (region-height region)
-              depth (region-depth region))))))
+(ut:bidi-ffi (origin :type :unsigned-long) x y z)
+(ut:bidi-ffi (size :type :unsigned-long) w h d)
+(ut:bidi-ffi (viewport) x y w h near far)
+(ut:bidi-ffi (region :type :unsigned-long) x y z w h d)
 
 ;; ───────────────────────────────────────────────────────────────── Render pass
 
