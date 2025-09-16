@@ -5,23 +5,23 @@
 (defun intern-format (&rest args)
   (intern (apply #'format nil args)))
 
-;; TODO 2025-09-07 20:21:23 approach for aggregate types?
-;; TODO 2025-09-07 20:38:47 consider float coercion, maybe better not to
-(defmacro bidi-ffi (name &rest args) ; ─────────────────────── Bidirectional FFI
+(defmacro bidi-ffi ((name &key size (type :double)) &rest args) ; Bidirectional FFI
   (let* ((sn (intern-format "%~a" name))
-         (ps (intern "P")) ; symbol P interned in calling package
-         (params (loop for a in args by #'cddr collect a))
-         )
+         (ps (intern "P")) ; symbol P interned in calling namespace
+         (params (loop for p in args collect (if (listp p) (car p) p))))
     `(progn
-       (cffi:defcstruct (,name :class ,sn)
-         ,@(loop for (p ty) on args by #'cddr collect `(,p ,ty)))
+       (cffi:defcstruct (,name :class ,sn ,@(when size (list :size size)))
+         ,@(loop for p in args
+                 ;; fully specify if list e.g. (slotname :double :offset 3)
+                 collect (if (listp p) p (list p type))))
        (defstruct (,name (:constructor ,name ,params)) ,@params)
        (defmethod cffi:translate-from-foreign (,ps (type ,sn))
          (cffi:with-foreign-slots (,params ,ps (:struct ,name)) (,name ,@params)))
        (defmethod cffi:translate-into-foreign-memory (,name (type ,sn) ,ps)
          (cffi:with-foreign-slots (,params ,ps (:struct ,name))
-           (setf ,@(loop for (p ty) on args by #'cddr nconcing
-                         `(,p (,(intern-format "~a-~a" name p) ,name)))))))))
+           (setf ,@(loop for p in args
+                         for s = (if (listp p) (car p) p)
+                         nconcing `(,s (,(intern-format "~a-~a" name s) ,name)))))))))
 
 (defclass arena () ; ───────────────────────────────────────────────────── Arena
   ((pointer :accessor pointer :initform nil)

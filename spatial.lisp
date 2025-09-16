@@ -40,6 +40,18 @@
 
 ;; TODO 2025-09-14 21:57:33 method for stacking calls without pointless translation; think vaguely about (declare inline...)
 
+
+
+(ut:bidi-ffi (angle) radians)
+(ut:bidi-ffi (rotation-axis :size 32) x y z)
+(ut:bidi-ffi (rotation) a b c d)
+(ut:bidi-ffi (point :size 32) x y z)
+(ut:bidi-ffi (vec :size 32) x y z) ; don't collide with cl:vector
+(ut:bidi-ffi (size :size 32) w h d)
+(ut:bidi-ffi (rect :size 64) x y z (w :double :offset 32) h d)
+(ut:bidi-ffi (ray :size 64) ox oy oz (dx :double :offset 32) dy dz)
+
+
 #+nil(progn ; ────────────────────────────────────────────────── Indirect method
        (ql:quickload :cocoagain)
        (in-package :spatial)
