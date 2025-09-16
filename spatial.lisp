@@ -8,7 +8,7 @@
 ;; ...or just straightforward cffi:foreign-funcall using vector translators
 ;; want C side to have value params (not pointers) so passed by copy
 
-;; TODO 2025-09-09 21:49:05 also consider cffi:with-pointer-to-vector-data and
+;; TODO ;2025-09-09 21:49:05 also consider cffi:with-pointer-to-vector-data and
 ;; (make-array 20 :element-type 'double-float)
 
 ;; ───────────────────────────────────────────────────────────────── Wrap method
@@ -38,7 +38,7 @@
 ;; TODO 2025-09-14 22:20:44 extract (simplified) types too
 ;; (rect-3d-get-center (v8d 0.0d0 0.0d0 0.0d0 0.0d0 1.0d0 1.0d0 1.0d0 0.0d0))
 
-;; TODO 2025-09-14 21:57:33 method for stacking calls without pointless translation
+;; TODO 2025-09-14 21:57:33 method for stacking calls without pointless translation; think vaguely about (declare inline...)
 
 #+nil(progn ; ────────────────────────────────────────────────── Indirect method
        (ql:quickload :cocoagain)
