@@ -7,6 +7,12 @@ using namespace metal;
 // - argument buffers bundle resources and data for a particular
 // shader into one object
 
+/* 5.2.1 Each attribute (buffer, threadgroup, texture and sampler)
+   represents a group of resources. The index values specified on the
+   arguments shall be unique within each resource group. */
+
+// https://metalbyexample.com/vertex-descriptors/
+
 /* 5.2.2 For per-vertex input passed as an argument declared with the
 [[stage_in]] attribute, each element of the per-vertex input must
 specify the vertex attribute location as [[attribute(index)]]. */

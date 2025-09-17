@@ -31,7 +31,7 @@
 
 (defmethod set-shaders ((self render-pipeline) &optional library vertex fragment)
     (if vertex (mtk::set-vertex-function self (mtk::make-function library vertex))
-        (error "Need to set vertex function in render pipeline ~a." pipeline-label))
+        (error "Need to set vertex function in render pipeline ~a." (label self)))
     (when fragment
       (mtk::set-fragment-function self (mtk::make-function library fragment))))
 
@@ -48,6 +48,7 @@
   ((cocoa-ref :accessor ns::cocoa-ref :initform nil :documentation "Pointer to MTLBuffer")
    (cap :initarg :cap :reader cap)
    (len :initform 0 :accessor len)
+   (doc :initarg :doc :accessor doc) ; documentation
    (mode :initarg :mode :reader mode :initform
          (+ mtl::ResourceStorageModeManaged ; TODO 2025-08-31 22:20:23 differently on +arm64 ?
             mtl::ResourceCPUCacheModeDefaultCache)))) ; vs ...write-combined
@@ -131,9 +132,10 @@
   ((view :initarg :view :reader view) ; pass in to allow more obvious initialisation...
    (lock :initform (bt:make-recursive-lock) :reader lock)
    (render-pipelines :reader render-pipelines :initform (make-hash-table))
-   (vertex-buffers :reader vertex-buffers
+   (buffers :reader buffers
                    ;; use vector-push-extend
-                   :initform (make-array 0 :adjustable t :fill-pointer t))
+            :initform (make-array 0 :adjustable t :fill-pointer t))
+   ;; TODO 2025-09-18 09:00:14 being texture handles?
    (textures :reader textures :initform (make-array 0 :adjustable t :fill-pointer t))
    ;; TODO 2025-08-17 15:57:46 depth stencils, other buffers once understand...
    (command-queue :accessor command-queue)) ; FIXME 2025-08-31 15:48:44 ideally :reader only
@@ -166,13 +168,13 @@ general-purpose."))
                                        :vertex vertex :fragment fragment))))
           (values rp present-p)))))
 
-(defmethod add-vertex-buffer ((self mtk-context) (b buffer-handle))
+(defmethod add-buffer ((self mtk-context) (b buffer-handle))
   "Add a vertex buffer to context if not already there. Returns index."
-  (let* ((vbs (vertex-buffers self))
-         (index (loop for i below (fill-pointer vbs)
-                      if (eq (elt vbs i) b) return i)))
-    (assert (not index) nil "Buffer ~a already present in position ~a. Continue to return this index." b index)
-    (if index index (vector-push-extend b (vertex-buffers self)))))
+  (let* ((bs (buffers self))
+         (index (loop for i below (fill-pointer bs)
+                      if (eq (elt bs i) b) return i)))
+    (when index (warn "Buffer ~a already present in position ~a. Continue to return this index." b index))
+    (if index index (vector-push-extend b (buffers self)))))
 
 (defmethod pipeline-state ((self mtk-context) &optional (pipeline-label :default))
   ;; FIXME 2025-08-31 22:58:37 This will fail if vbs not configured yet. (e.g. draw too early?)
@@ -206,10 +208,11 @@ general-purpose."))
            (pdp (configure-render-pipeline self :label :point :library library
                       :vertex "vertex_point" :fragment "fragment_point"))
            (srd (stride 'mtl::VertexFormatFloat3))
-           (vb (if (zerop (fill-pointer (vertex-buffers self)))
-                   (make-instance 'buffer-handle :device device :cap (* 1024 srd))
-                   (elt (vertex-buffers self) 0)))
-           (vb-index (add-vertex-buffer self vb)))
+           (vb (if (zerop (fill-pointer (buffers self)))
+                   (make-instance 'buffer-handle :device device :cap (* 1024 srd)
+                                  :doc "Vertex buffer but could jam other stuff in")
+                   (elt (buffers self) 0)))
+           (vb-index (add-buffer self vb)))
 
       (mtk::set-vertex-descriptor-attribute vd 0 mtl::VertexFormatFloat3 :index vb-index)
       (mtk::set-vertex-descriptor-layout vd vb-index srd)
@@ -228,33 +231,30 @@ general-purpose."))
                         -0.7 -0.8  0.0
                         1.0 -1.0  0.0)))))
 
-(progn ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Draw
-  ;; for call frequency see https://stackoverflow.com/a/71655894/780743
-  (defmethod ns:draw ((self ns:mtk-view))
-    (let ((ctx (ns:context self)))
-      (bt:with-recursive-lock-held ((lock ctx))
-        (let* ((vb (elt (vertex-buffers ctx) 0)) ; vertex buffers index
-               (len (/ (len vb) 3 4))
-               ;; TODO 2025-08-30 11:29:14 could automate translation of pointer?
-               (vb-ref (ns::cocoa-ref vb))
-               (cb (mtk::command-buffer (command-queue ctx)))
-               (rp (mtk::render-pass-descriptor self)) ;; MTKView clearColor
-               
-               (ps (pipeline-state ctx))
-               (psp (pipeline-state ctx :point)))
-          ;;(format t "len ~a ~%" (len vb))
-          (let* ((ce (mtk::render-command-encoder cb rp)))
-            (unwind-protect
-                 (progn
-                   (mtk::set-vertex-buffer ce vb-ref)
-                   (mtk::set-render-pipeline-state ce ps)
-                   (mtk::draw-primitives ce mtl::PrimitiveTypeTriangle 0 len)
-                   (mtk::set-render-pipeline-state ce psp)
-                   (mtk::draw-primitives ce mtl::PrimitiveTypePoint 0 len))
-              (mtk::end-encoding ce)))
-          (mtk::present-drawable cb (mtk::drawable self))
-          (mtk::commit cb)))))
-  (display-all))
+;; for call frequency see https://stackoverflow.com/a/71655894/780743
+(defmethod ns:draw ((self ns:mtk-view)) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Draw
+  (let ((ctx (ns:context self)))
+    (bt:with-recursive-lock-held ((lock ctx))
+      (let* ((vb (elt (buffers ctx) 0)) ; vertex buffers index
+             (len (/ (len vb) 3 4))
+             ;; TODO 2025-08-30 11:29:14 could automate translation of pointer?
+             (vb-ref (ns::cocoa-ref vb))
+             (cb (mtk::command-buffer (command-queue ctx)))
+             (rp (mtk::render-pass-descriptor self)) ;; MTKView clearColor
+             (ps (pipeline-state ctx))
+             (psp (pipeline-state ctx :point)))
+        ;;(format t "len ~a ~%" (len vb))
+        (let* ((ce (mtk::render-command-encoder cb rp)))
+          (unwind-protect
+               (progn
+                 (mtk::set-vertex-buffer ce vb-ref)
+                 (mtk::set-render-pipeline-state ce ps)
+                 (mtk::draw-primitives ce mtl::PrimitiveTypeTriangle 0 len)
+                 (mtk::set-render-pipeline-state ce psp)
+                 (mtk::draw-primitives ce mtl::PrimitiveTypePoint 0 len))
+            (mtk::end-encoding ce)))
+        (mtk::present-drawable cb (mtk::drawable self))
+        (mtk::commit cb)))))
 
 (defvar *last-ctx* nil) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Event loop
 (ns:with-event-loop (:waitp t)
@@ -278,7 +278,7 @@ general-purpose."))
        (defmethod ns::mouse-dragged ((self ns:mtk-view) event location-x location-y)
          (let* ((x (scale-cursor location-x (ns:width self)))
                 (y (scale-cursor location-y (ns:height self)))
-                (vb (elt (vertex-buffers (ns:context self)) 0)))
+                (vb (elt (buffers (ns:context self)) 0)))
            ;; NB reader macro for vector #() seemed to quote contents
            (put-float3s vb (vector x y 0.0
                                    -1.0 -1.0 0.0
@@ -292,7 +292,7 @@ general-purpose."))
        ;; NB 2025-09-17 20:54:45 Currently needs manual timer
       ;; invalidation for reliable window closing. See
       ;; core-foundation.lisp.
-      (let ((vb (elt (vertex-buffers *last_ctx*) 0))
+       (let ((vb (elt (buffers *last_ctx*) 0))
             (make-instance
               ;; NB 2025-09-01 21:57:28 timer behaves differently ~1000x arm64 vs x86-64
               'ns:timer :interval 0.0166 :timer-fn
@@ -301,8 +301,8 @@ general-purpose."))
                              :offset srd)))))
 
       (setup *last-ctx*)
-      (vertex-buffers *last-ctx*)
-      (dump (elt (vertex-buffers *last-ctx*) 0) :float)
+      (buffers *last-ctx*)
+      (dump (elt (buffers *last-ctx*) 0) :float)
       )
 
 #+nil(uiop/os:getcwd) ; depends on from which buffer sly was started

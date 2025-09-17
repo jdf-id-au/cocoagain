@@ -51,7 +51,9 @@
 (defun set-depth-stencil-state (command-encoder depth-stencil-state)
   (ns:objc command-encoder "setDepthStencilState:" :pointer depth-stencil-state))
 
-;; TODO 2025-08-31 23:19:00 compare with setVertexBufferOffset:atIndex: Updates an entry in the vertex shader argument table with a new location within the entry’s current buffer.
+;; TODO 2025-08-31 23:19:00 compare with setVertexBufferOffset:atIndex:
+;; Updates an entry in the vertex shader argument table with a new
+;; location within the entry’s current buffer.
 (defun set-vertex-buffer (command-encoder buffer &key (offset 0) (index 0))
   "Assigns a buffer to an entry in the vertex shader argument table." ; also see vertex descriptor section
   (ns:objc command-encoder "setVertexBuffer:offset:atIndex:"
@@ -60,10 +62,26 @@
            :int index)) 
 ;; TODO 2025-08-31 23:19:03 setVertexBuffers:offsets:withRange: low priority
 
+(defun set-vertex-bytes (command-encoder ptr length &key (index 0))
+  "Creates a buffer from bytes and assigns it to an entry in the vertex shader argument table.
+Avoid MTLBuffer creation overhead, only suitable for <4KB, e.g. uniforms."
+  (ns:objc command-encoder "setVertexBytes:length:atIndex:"
+           :pointer ptr
+           :int length
+           :int index))
+
 (defun set-fragment-buffer (command-encoder buffer &key (offset 0) (index 0))
   (ns:objc command-encoder "setFragmentBuffer:offset:atIndex:" :pointer buffer
 							       :int offset
 							       :int index))
+
+(defun set-fragment-bytes (command-encoder ptr length &key (index 0))
+  "Creates a buffer from bytes and assigns it to an entry in the fragment shader argument table.
+Avoid MTLBuffer creation overhead, only suitable for <4KB, e.g. uniforms."
+  (ns:objc command-encoder "setFragmentBytes:length:atIndex:"
+           :pointer ptr
+           :int length
+           :int index))
 
 (defun set-fragment-texture (command-encoder texture &key (index 0))
   (ns:objc command-encoder "setFragmentTexture:atIndex:" :pointer texture :int index))
@@ -283,7 +301,7 @@
 
 ;; ───────────────────────────────────────────────────────────────────── Texture
 
-(defun texture2d-descriptor (pixel-format width height mipmap)
+(defun texture-2d-descriptor (pixel-format width height mipmap)
   (ns:objc "MTLTextureDescriptor" "texture2DDescriptorWithPixelFormat:width:height:mipmapped:"
 	   :int pixel-format
 	   :int width
@@ -291,10 +309,31 @@
 	   :bool mipmap
 	   :pointer))
 
-(defun make-texture (device descriptor)
+(defun texture-cube-descriptor (pixel-format width height mipmap)
+  (ns:objc "MTLTextureDescriptor" "textureCubeDescriptorWithPixelFormat:width:height:mipmapped:"
+	   :int pixel-format
+	   :int width
+	   :int height
+	   :bool mipmap
+	   :pointer))
+
+(defun texture-buffer-descriptor (pixel-format width options usage)
+  (ns:objc "MTLTextureDescriptor" "textureBufferDescriptorWithPixelFormat:width:resourceOptions:usage:"
+	   :int pixel-format
+	   :int width
+	   :int options
+	   :int usage
+	   :pointer))
+
+(defun make-device-texture (device descriptor)
   (ns:objc device "newTextureWithDescriptor:" :pointer descriptor :pointer))
 
-;; TODO newTextureWithDescriptor:offset:bytesPerRow: on a MTLBuffer
+(defun make-buffer-texture (buffer descriptor stride &key (offset 0))
+  (ns:objc buffer "newTextureWithDescriptor:offset:bytesPerRow:"
+           :pointer descriptor
+           :int offset
+           :int stride
+           :pointer))
 
 (defun replace-region (texture region mipmap-level data bpr)
   (ns:objc texture "replaceRegion:mipmapLevel:withBytes:bytesPerRow:"
