@@ -54,7 +54,7 @@ SPELL_ENUMS(MTLTriangleFillModeFill, MTLTriangleFillModeLines,
             MTLBlendFactorZero, MTLBlendFactorOne, MTLBlendFactorSourceAlpha, MTLBlendFactorDestinationAlpha, MTLBlendFactorBlendAlpha,
 
             SPAxisX, SPAxisY, SPAxisZ,
-            SPEulerXYZ, SPEulerZXY, SPEulerPitchYawRoll, 
+            SPEulerXYZ, SPEulerZXY,
             );
 
 struct elision {

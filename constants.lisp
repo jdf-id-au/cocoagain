@@ -105,3 +105,5 @@
 (defconstant AxisX 1)
 (defconstant AxisY 2)
 (defconstant AxisZ 4)
+(defconstant EulerXYZ 1)
+(defconstant EulerZXY 2)

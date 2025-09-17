@@ -22,12 +22,12 @@
                                 "frame")
            #+arm64 (objc (objc "NSScreen" "mainScreen" :pointer)
                          "frame" (:struct rect)))
-         (in-x (- (rect-width screen) (rect-width rect)))
-         (in-y (- (rect-height screen) (rect-height rect))))
+         (in-x (- (rect-w screen) (rect-w rect)))
+         (in-y (- (rect-h screen) (rect-h rect))))
     (rect (clamp (rect-x rect) 0 in-x)
           (clamp (rect-y rect) 0 in-y)
-          (rect-width rect)
-          (rect-height rect))))
+          (rect-w rect)
+          (rect-h rect))))
 
 (defmethod initialize-instance :after
     ((self window) &key rect (x 0) (y 0) (w 400) (h 200)

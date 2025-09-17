@@ -11,10 +11,10 @@
 
 (ut:bidi-ffi (v3 :size 32) a b c)
 (ut:bidi-ffi (v4 :size 32) a b c d)
-(ut:bidi-ffi (eul) a b c (o :uint32)) ; order eg AxisX defconstant see constants.lisp
-(ut:bidi-ffi (rota :size 32) x y z)
-(ut:bidi-ffi (rotq) a b c d)
-(ut:bidi-ffi (pt :size 32) x y z) ; FIXME 2025-09-17 07:34:57 is padding 1d0?
+(ut:bidi-ffi (eul) a b c (o :uint32)) ; order eg EulerXYZ defconstant see constants.lisp
+(ut:bidi-ffi (rota :size 32) x y z) ; rotation axis, +z forward i.e. right-handed
+(ut:bidi-ffi (rotq) a b c d) ; quaternion
+(ut:bidi-ffi (pt :size 32) x y z)
 (ut:bidi-ffi (vec :size 32) x y z) ; don't collide with cl:vector
 (ut:bidi-ffi (size :size 32) w h d) ; width height depth
 (ut:bidi-ffi (rect :size 64) x y z (w :double :offset 32) h d)
@@ -31,11 +31,13 @@
              (ba :double :offset 32) bb bc bd
              (ca :double :offset 64) cb cc cd
              (da :double :offset 96) db dc dd)
-(ut:bidi-ffi (sph :size 32) r i a) ; radius inclination azimuth
+(ut:bidi-ffi (sph :size 32) rad inc az) ; radius inclination azimuth
 
 #+nil(
-      (time (dotimes (x 1000000) (rot 1d0 (rota 1d0 2d0 3d0))))
-      ;; FIXME 2025-09-17 14:31:46 383MB consed! 14B cycles!
+      (time (dotimes (x 1000000) (scale->aff (size 2d0 2d0 2d0))))
+      ;; FIXME 2025-09-17 14:31:46 4.2s! 500MB consed! 13 B cycles! What would good be?
+      (lookat->rot (vec 1d0 0.5d0 -1d0) (vec 0.5d0 1d0 0d0)) ; FIXME 2025-09-17 15:32:57 extremely tiny values? then zeros?
+      (rectunion (rect 1d0 1d0 1d0 .5d0 .5d0 .5d0) (rect -1d0 -1d0 -1d0 .1d0 .1d0 .1d0)) ; FIXME 2025-09-17 15:43:01 is something broken about offsets??
       )
 
 (PROGN

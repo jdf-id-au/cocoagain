@@ -5,7 +5,7 @@
 (defun intern-format (&rest args)
   (intern (apply #'format nil args)))
 
-(defmacro bidi-ffi ((name &key size (type :double)) &rest args)
+(defmacro bidi-ffi ((name &key size (type :double) coerce) &rest args)
   "Define cstruct, struct and corresponding translate methods for
 bidirectional ffi. Args are either plain symbols which receive default
 type, or full cffi slot specifiers."
@@ -24,7 +24,10 @@ type, or full cffi slot specifiers."
          (cffi:with-foreign-slots (,params ,ps (:struct ,name))
            (setf ,@(loop for p in args
                          for s = (if (listp p) (car p) p)
-                         nconc `(,s (,(intern-format "~a-~a" name s) ,name)))))))))
+                         for v = `(,(intern-format "~a-~a" name s) ,name)
+                         nconc `(,s ,(if coerce
+                                         `(coerce ,v 'double-float) ; TODO 2025-09-17 15:59:57 TODO correct type lookup via cffi impl
+                                         v)))))))))
 
 (defclass arena () ; ───────────────────────────────────────────────────── Arena
   ((pointer :accessor pointer :initform nil)

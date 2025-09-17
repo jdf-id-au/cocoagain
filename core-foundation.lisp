@@ -127,9 +127,9 @@
 ;; ─────────────────────────────────────────────────────────────────────── Types
 
 (ut:bidi-ffi (range :type :unsigned-long) loc len)
-(ut:bidi-ffi (point) x y)
-(ut:bidi-ffi (size) w h)
-(ut:bidi-ffi (rect) x y w h)
+(ut:bidi-ffi (point :coerce t) x y)
+(ut:bidi-ffi (size :coerce t) w h)
+(ut:bidi-ffi (rect :coerce t) x y w h)
 
 ;; ─────────────────────────────────────────────────────────────────────── Timer
 
