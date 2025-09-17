@@ -1,5 +1,7 @@
 (in-package :metal-kit)
 
+;; FIXME 2025-09-18 05:43:52 ns:autorelease new* calls??
+
 ;; ─────────────────────────────────────────────────────────────────────── Types
 
 ;; Also see :spatial and :core-foundation packages.
@@ -88,12 +90,12 @@
 ;; ───────────────────────────────────────────────────────────────────── Shaders
 
 (defun make-library (device source &key (options (cffi:null-pointer)))
-  (ns:protect ; FIXME 2025-09-17 20:57:42 autorelease?
+  (ns:protect ; TODO 2025-09-18 04:54:20 confirm autorelease semantics
    (ns:objc device "newLibraryWithSource:options:error:"
-                   :pointer (ns:autorelease (ns:make-ns-string source))
-                   :pointer options
-                   :pointer (cffi:null-pointer) ; FIXME 2025-08-16 00:12:19
-                   :pointer)
+            :pointer (ns:autorelease (ns:make-ns-string source))
+            :pointer options
+            :pointer (cffi:null-pointer) ; FIXME 2025-08-16 00:12:19
+            :pointer)
    "Shader compilation failed: ~% ~a" source))
 
 (defun make-function (library name)
@@ -157,7 +159,7 @@
 ;; https://metalbyexample.com/vertex-descriptors/
 
 (defun make-vertex-descriptor ()
-  (ns:new "MTLVertexDescriptor")) ; TODO 2025-08-16 01:45:11 cleanup after?
+  (ns:new "MTLVertexDescriptor"))
 
 (defun set-vertex-descriptor-attribute (vertex-descriptor attribute-index format
                                         &key (offset 0) (index 0))
@@ -220,7 +222,7 @@
                       :pointer (cffi:null-pointer)))) ; TODO 2025-08-16 19:50:42 how?
       (setf (cffi:mem-ref err :pointer) e))
     (let ((p
-            (ns:objc device "newRenderPipelineStateWithDescriptor:error:"
+            (ns:objc device "newRenderPipelineStateWithDescriptor:error:" ; TODO 2025-09-18 04:57:25 autorelease
                      :pointer pipeline-descriptor
                      :pointer err
                      :pointer)))
@@ -261,19 +263,20 @@
 
 (defun new-buffer (device length &optional (options (+ mtl::ResourceCPUCacheModeDefaultCache
                                                        mtl::ResourceStorageModeManaged)))
-  (ns:objc device "newBufferWithLength:options:"
-           :int length
-           :int options
-           :pointer))
+  (ns:protect (ns:objc device "newBufferWithLength:options:"
+                        :int length
+                        :int options
+                        :pointer)
+              "Failed to allocate buffer."))
 
 (defun make-buffer (device data length &optional (options (+ mtl::ResourceCPUCacheModeDefaultCache
                                                              mtl::ResourceStorageModeManaged)))
   "Copies data."
   (ns:objc device "newBufferWithBytes:length:options:"
-	   :pointer data
-	   :int length
-	   :int options
-	   :pointer))
+           :pointer data
+           :int length
+           :int options
+           :pointer))
 
 (defun buffer-contents (buffer)
   (ns:objc buffer "contents" :pointer))

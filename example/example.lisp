@@ -29,6 +29,12 @@
 
 ;; TODO 2025-08-31 14:46:02 MTL{Compute,MeshRender,TileRender}PipelineDescriptor... similarities...
 
+(defmethod set-shaders ((self render-pipeline) &optional library vertex fragment)
+    (if vertex (mtk::set-vertex-function self (mtk::make-function library vertex))
+        (error "Need to set vertex function in render pipeline ~a." pipeline-label))
+    (when fragment
+      (mtk::set-fragment-function self (mtk::make-function library fragment))))
+
 (defmethod initialize-instance :after
     ((self render-pipeline) &key library vertex fragment)
   (let* ((pipeline-label (label self)))
@@ -36,11 +42,7 @@
     ;; ...automate passing lisp strings to NSString?
     (ns:objc self "setLabel:" :pointer
              (ns:autorelease (ns:make-ns-string (symbol-name pipeline-label))))
-    (if vertex (mtk::set-vertex-function self (mtk::make-function library vertex))
-        (error "Need to set vertex function in render pipeline ~a." pipeline-label))
-    (when fragment
-      (mtk::set-fragment-function self (mtk::make-function library fragment)))))
-
+    (set-shaders self library vertex fragment)))
 
 (defclass buffer-handle () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Metal buffer
   ((cocoa-ref :accessor ns::cocoa-ref :initform nil :documentation "Pointer to MTLBuffer")
@@ -60,13 +62,7 @@
 
 (defmethod initialize-instance :after ((self buffer-handle) &key device)
   (setf (ns::cocoa-ref self) ; TODO 2025-08-31 22:13:14 if setf allowed here could make :reader only
-        (ns:protect
-         ;; FIXME 2025-08-17 21:51:28 curious about when this is freed
-         ;; ...need autorelease?
-         (progn
-           ;;(format t "Making new buffer of size ~a.~%" (cap self))
-           (mtk::new-buffer device (cap self) (mode self)))
-         "Failed to allocate buffer.")))
+        (mtk::new-buffer device (cap self) (mode self))))
 
 (defun parse-vf (vf)
   (let* ((name (symbol-name vf)))
@@ -153,17 +149,22 @@ general-purpose."))
   (setf (ns:context (view self)) self)
   (setf (command-queue self) (mtk::make-command-queue (ns:device self))))
 
-(defmethod add-render-pipeline ((self mtk-context) (p render-pipeline))
-  "Add or replace given render pipeline, uniquely by label.
- Second value indicates if replacing."
-  (let* ((label (label p))
-         (previous (gethash label (render-pipelines self))))
-    (when previous (format t "Overwriting pipeline ~a~%" label)) ; TODO 2025-08-31 15:09:38 destruct harmoniously, here vs on passed-out second value?
-    (setf (gethash label (render-pipelines self)) p) ; manky non-factorable syntax
-    (values p (and previous T))))
-
 (defmethod render-pipeline ((self mtk-context) &optional (pipeline-label :default))
   (gethash pipeline-label (render-pipelines self)))
+
+(defmethod configure-render-pipeline ((self mtk-context)
+                                      &key (label :default) library vertex fragment)
+  (multiple-value-bind (rp present-p) (render-pipeline self label)
+    (if present-p
+        (progn
+          (set-shaders rp library vertex fragment)
+          (clrhash (%states rp))
+          (values rp present-p))
+        (let ((rp (setf (gethash label (render-pipelines self)) ; not factorable...
+                        (make-instance 'render-pipeline
+                                       :label label :library library
+                                       :vertex vertex :fragment fragment))))
+          (values rp present-p)))))
 
 (defmethod add-vertex-buffer ((self mtk-context) (b buffer-handle))
   "Add a vertex buffer to context if not already there. Returns index."
@@ -199,20 +200,18 @@ general-purpose."))
            ;; working. Doesn't kill repl/runtime, just Continue.
            (library (mtk::make-library device shader-source))
            ;; TODO 2025-09-17 21:51:28 stop drawing first?
-           (pd (add-render-pipeline
-                self (make-instance 'render-pipeline
-                                    :library library
-                                    :vertex "vertex_ndc" :fragment "fragment_lsd")))
+           (pd (configure-render-pipeline self :library library
+                :vertex "vertex_ndc" :fragment "fragment_lsd"))
            (vd (vertex-descriptor pd))
-           (pdp (add-render-pipeline
-                 self (make-instance 'render-pipeline
-                                     :label :point ; not :default
-                                     :library library :vertex "vertex_point" :fragment "fragment_point")))
+           (pdp (configure-render-pipeline self :label :point :library library
+                      :vertex "vertex_point" :fragment "fragment_point"))
            (srd (stride 'mtl::VertexFormatFloat3))
-           (vb (make-instance 'buffer-handle :device device :cap (* 1024 srd)))
+           (vb (if (zerop (fill-pointer (vertex-buffers self)))
+                   (make-instance 'buffer-handle :device device :cap (* 1024 srd))
+                   (elt (vertex-buffers self) 0)))
            (vb-index (add-vertex-buffer self vb)))
 
-      (mtk::set-vertex-descriptor-attribute vd 1 mtl::VertexFormatFloat3 :index vb-index)
+      (mtk::set-vertex-descriptor-attribute vd 0 mtl::VertexFormatFloat3 :index vb-index)
       (mtk::set-vertex-descriptor-layout vd vb-index srd)
       (mtk::set-vertex-descriptor pd vd)
       (mtk::set-vertex-descriptor pdp vd)
@@ -234,7 +233,7 @@ general-purpose."))
   (defmethod ns:draw ((self ns:mtk-view))
     (let ((ctx (ns:context self)))
       (bt:with-recursive-lock-held ((lock ctx))
-        (let* ((vb (elt (vertex-buffers ctx) 1)) ; vertex buffers index
+        (let* ((vb (elt (vertex-buffers ctx) 0)) ; vertex buffers index
                (len (/ (len vb) 3 4))
                ;; TODO 2025-08-30 11:29:14 could automate translation of pointer?
                (vb-ref (ns::cocoa-ref vb))
@@ -301,13 +300,9 @@ general-purpose."))
                 (put-float3s vb (vector (sin (/ seconds 2)) -0.8 0.0)
                              :offset srd)))))
 
-      ;; FIXME 2025-09-17 22:18:56 re-setup caused
-      ;; -[MTLVertexDescriptorInternal validateWithVertexFunction:error:renderPipelineDescriptor:]:904: failed assertion `Vertex Descriptor Validation Attribute at index 1 references a buffer at index 1 that has no stride.
-      ;; ...try `help` and `back[trace]`
       (setup *last-ctx*)
-
       (vertex-buffers *last-ctx*)
-      (dump (elt (vertex-buffers *last-ctx*) 2) :float)
+      (dump (elt (vertex-buffers *last-ctx*) 0) :float)
       )
 
 #+nil(uiop/os:getcwd) ; depends on from which buffer sly was started
