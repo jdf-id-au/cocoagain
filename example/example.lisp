@@ -54,6 +54,10 @@
   (ns:protect (mtk::buffer-contents self)
               "Failed to access buffer contents. Check storage mode?"))
 
+(defmethod dump ((self buffer-handle) as)
+  (loop for i below (len self)
+        collect (cffi:mem-ref (contents self) as i)))
+
 (defmethod initialize-instance :after ((self buffer-handle) &key device)
   (setf (ns::cocoa-ref self) ; TODO 2025-08-31 22:13:14 if setf allowed here could make :reader only
         (ns:protect
@@ -129,6 +133,7 @@
 
 (defclass mtk-context () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Context manager
   ((view :initarg :view :reader view) ; pass in to allow more obvious initialisation...
+   (lock :initform (bt:make-recursive-lock) :reader lock)
    (render-pipelines :reader render-pipelines :initform (make-hash-table))
    (vertex-buffers :reader vertex-buffers
                    ;; use vector-push-extend
@@ -153,7 +158,7 @@ general-purpose."))
  Second value indicates if replacing."
   (let* ((label (label p))
          (previous (gethash label (render-pipelines self))))
-    ;;(when previous) ; TODO 2025-08-31 15:09:38 destruct harmoniously, here vs on passed-out second value?
+    (when previous (format t "Overwriting pipeline ~a~%" label)) ; TODO 2025-08-31 15:09:38 destruct harmoniously, here vs on passed-out second value?
     (setf (gethash label (render-pipelines self)) p) ; manky non-factorable syntax
     (values p (and previous T))))
 
@@ -184,91 +189,88 @@ general-purpose."))
           (setf (gethash key cache)
                 (mtk::make-render-pipeline-state view (ns::cocoa-ref rp)))))))
 
+(defmethod setup ((self mtk-context))
+  ;; TODO 2025-09-17 21:55:37 file watch https://stackoverflow.com/a/11372441/780743
+  (bt:with-recursive-lock-held ((lock self))
+    (let* ((shader-source (uiop:read-file-string "example/example.metal"))
+           (device (ns:device (view self)))
+           ;; Uncompilable shader would be described in
+           ;; sly-inferior-lisp log from objc until I get lisp impl
+           ;; working. Doesn't kill repl/runtime, just Continue.
+           (library (mtk::make-library device shader-source))
+           ;; TODO 2025-09-17 21:51:28 stop drawing first?
+           (pd (add-render-pipeline
+                self (make-instance 'render-pipeline
+                                    :library library
+                                    :vertex "vertex_ndc" :fragment "fragment_lsd")))
+           (vd (vertex-descriptor pd))
+           (pdp (add-render-pipeline
+                 self (make-instance 'render-pipeline
+                                     :label :point ; not :default
+                                     :library library :vertex "vertex_point" :fragment "fragment_point")))
+           (srd (stride 'mtl::VertexFormatFloat3))
+           (vb (make-instance 'buffer-handle :device device :cap (* 1024 srd)))
+           (vb-index (add-vertex-buffer self vb)))
+
+      (mtk::set-vertex-descriptor-attribute vd 1 mtl::VertexFormatFloat3 :index vb-index)
+      (mtk::set-vertex-descriptor-layout vd vb-index srd)
+      (mtk::set-vertex-descriptor pd vd)
+      (mtk::set-vertex-descriptor pdp vd)
+      
+      (mtk::set-color-attachment-pixel-format pd 0)
+      (mtk::set-color-attachment-pixel-format pdp 0)
+      
+      (progn
+        (mtk::set-color-attachment-blending-enabled pdp 0 T)
+        (mtk::set-color-attachment-blend-factor pdp 0 :source :rgb mtl::BlendFactorSourceAlpha)
+        (mtk::set-color-attachment-blend-factor pdp 0 :dest :rgb mtl::BlendFactorSourceAlpha))
+      
+      (put-float3s vb #( 0.0  0.9  0.0
+                        -0.7 -0.8  0.0
+                        1.0 -1.0  0.0)))))
+
 (progn ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Draw
   ;; for call frequency see https://stackoverflow.com/a/71655894/780743
   (defmethod ns:draw ((self ns:mtk-view))
-    (let* ((ctx (ns:context self))
-           ;; TODO 2025-08-30 11:29:14 could automate translation of pointer?
-           (vb (elt (vertex-buffers ctx) 0))
-           (len (/ (len vb) 3 4))
-           (vb-ref (ns::cocoa-ref vb)) ; vertex buffers index
-           (cb (mtk::command-buffer (command-queue ctx)))
-           (rp (mtk::render-pass-descriptor self)) ;; MTKView clearColor
-           
-           (ps (pipeline-state ctx))
-           (psp (pipeline-state ctx :point)))
-      ;;(format t "len ~a ~%" (len vb))
-      (let* ((ce (mtk::render-command-encoder cb rp)))
-        (unwind-protect
-             (progn
-               (mtk::set-vertex-buffer ce vb-ref)
-               (mtk::set-render-pipeline-state ce ps)
-               (mtk::draw-primitives ce mtl::PrimitiveTypeTriangle 0 len)
-               (mtk::set-render-pipeline-state ce psp)
-               (mtk::draw-primitives ce mtl::PrimitiveTypePoint 0 len))
-          (mtk::end-encoding ce)))
-      (mtk::present-drawable cb (mtk::drawable self))
-      (mtk::commit cb)))
+    (let ((ctx (ns:context self)))
+      (bt:with-recursive-lock-held ((lock ctx))
+        (let* ((vb (elt (vertex-buffers ctx) 1)) ; vertex buffers index
+               (len (/ (len vb) 3 4))
+               ;; TODO 2025-08-30 11:29:14 could automate translation of pointer?
+               (vb-ref (ns::cocoa-ref vb))
+               (cb (mtk::command-buffer (command-queue ctx)))
+               (rp (mtk::render-pass-descriptor self)) ;; MTKView clearColor
+               
+               (ps (pipeline-state ctx))
+               (psp (pipeline-state ctx :point)))
+          ;;(format t "len ~a ~%" (len vb))
+          (let* ((ce (mtk::render-command-encoder cb rp)))
+            (unwind-protect
+                 (progn
+                   (mtk::set-vertex-buffer ce vb-ref)
+                   (mtk::set-render-pipeline-state ce ps)
+                   (mtk::draw-primitives ce mtl::PrimitiveTypeTriangle 0 len)
+                   (mtk::set-render-pipeline-state ce psp)
+                   (mtk::draw-primitives ce mtl::PrimitiveTypePoint 0 len))
+              (mtk::end-encoding ce)))
+          (mtk::present-drawable cb (mtk::drawable self))
+          (mtk::commit cb)))))
   (display-all))
 
-(ns:with-event-loop (:waitp t) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Event loop
+(defvar *last-ctx* nil) ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Event loop
+(ns:with-event-loop (:waitp t)
   (let* ((win (make-instance 'ns:window
                              :rect (ns:in-screen-rect (ns:rect 0 1000 720 450))
                              :title "MetalKit demo"))
          (view (make-instance 'ns:mtk-view))
-         (ctx (make-instance 'mtk-context :view view))
-         ;; TODO 2025-08-16 20:03:21 separate out so shader (pipeline etc?) can be hot reloaded
-         ;; incl file watch https://stackoverflow.com/a/11372441/780743
-         (shader-source (uiop:read-file-string "example/example.metal"))
-         ;; Uncompilable shader would be described in sly-inferior-lisp log from objc until I get lisp impl working.
-         ;; Doesn't kill repl/runtime, just Continue.
-         (library (mtk::make-library (ns:device view) shader-source))
-         (pd (add-render-pipeline
-              ctx (make-instance 'render-pipeline :library library
-                                                  :vertex "vertex_ndc"
-                                                  :fragment "fragment_lsd")))
-         (vd (vertex-descriptor pd))
-         (pdp (add-render-pipeline
-                    ctx (make-instance 'render-pipeline :label :point ; not :default
-                                                        :library library
-                                                        :vertex "vertex_point"
-                                                        :fragment "fragment_point")))
-         (srd (stride 'mtl::VertexFormatFloat3))
-         (vb (make-instance 'buffer-handle :device (ns:device view) :cap (* 1024 srd)))
-         (vb-index (add-vertex-buffer ctx vb)))
-
-    (mtk::set-vertex-descriptor-attribute vd 1 mtl::VertexFormatFloat3 :index vb-index)
-    (mtk::set-vertex-descriptor-layout vd 0 srd)
-    (mtk::set-vertex-descriptor pd vd)
-    (mtk::set-vertex-descriptor pdp vd)
-    
-    (mtk::set-color-attachment-pixel-format pd 0)
-    (mtk::set-color-attachment-pixel-format pdp 0)
-    
-    (progn
-      (mtk::set-color-attachment-blending-enabled pdp 0 T)
-      (mtk::set-color-attachment-blend-factor pdp 0 :source :rgb mtl::BlendFactorSourceAlpha)
-      (mtk::set-color-attachment-blend-factor pdp 0 :dest :rgb mtl::BlendFactorSourceAlpha))
-    
-    (put-float3s vb #( 0.0  0.9  0.0
-                      -0.7 -0.8  0.0
-                       1.0 -1.0  0.0))
-
-    ;; NB 2025-09-17 20:54:45 Currently needs manual timer
-    ;; invalidation for reliable window closing. See
-    ;; core-foundation.lisp.
-    #+nil(make-instance 'ns:timer :interval 0.0166 :timer-fn
-                   (lambda (seconds)
-                     (put-float3s vb (vector
-                                      ;; NB 2025-09-01 21:57:28 timer behaves differently ~1000x arm64 vs x86-64
-                                      (sin (/ seconds 2)) -0.8 0.0)
-                                  :offset srd)))
-    
+         (ctx (make-instance 'mtk-context :view view)))
+    (setup ctx)
+    (setf *last-ctx* ctx)
     ;; NB 2025-08-31 09:02:51 MTKView defaults to timer-redraw 60fps, alts available
     (setf (ns:content-view win) view)
     (ns:window-show win)))
 
-#+nil(progn ; ▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚▚ Events
+#+nil(progn ;
        (defun scale-cursor (loc dim)
          "Scale cursor to [-1,1]" ; could DISASSEMBLE and optimise...
          (coerce (1- (* (/ loc dim) 2)) 'single-float))
@@ -287,7 +289,26 @@ general-purpose."))
        ;; TODO 2025-08-30 20:09:03 remove-method?
        (defmethod ns::mouse-down ((self ns::mtk-view) event location-x location-y)
          (declare (ignorable event location-x location-y)))
-       )
+
+       ;; NB 2025-09-17 20:54:45 Currently needs manual timer
+      ;; invalidation for reliable window closing. See
+      ;; core-foundation.lisp.
+      (let ((vb (elt (vertex-buffers *last_ctx*) 0))
+            (make-instance
+              ;; NB 2025-09-01 21:57:28 timer behaves differently ~1000x arm64 vs x86-64
+              'ns:timer :interval 0.0166 :timer-fn
+              (lambda (seconds)
+                (put-float3s vb (vector (sin (/ seconds 2)) -0.8 0.0)
+                             :offset srd)))))
+
+      ;; FIXME 2025-09-17 22:18:56 re-setup caused
+      ;; -[MTLVertexDescriptorInternal validateWithVertexFunction:error:renderPipelineDescriptor:]:904: failed assertion `Vertex Descriptor Validation Attribute at index 1 references a buffer at index 1 that has no stride.
+      ;; ...try `help` and `back[trace]`
+      (setup *last-ctx*)
+
+      (vertex-buffers *last-ctx*)
+      (dump (elt (vertex-buffers *last-ctx*) 2) :float)
+      )
 
 #+nil(uiop/os:getcwd) ; depends on from which buffer sly was started
 
