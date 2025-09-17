@@ -69,9 +69,9 @@
 
 (defun pointer-passthrough (param)
   (ppcre:register-groups-bind
-      (nil name nil)
+      (star name brack)
       ("(\\*)?([^\\[\\]]*)(\\[\\])?" param)
-    name))
+    (values name (if (or star brack) t))))
 
 (defun wrap-args (paramlist)
   (let* ((o (make-string-output-stream)))
@@ -128,18 +128,35 @@ file which will need some massaging in response to compiler messages."
 (defun convert-type (param)
   (destructuring-bind (ty p) param
     (let ((rt (or (cdr (assoc ty types :test 'equal)) :void)))
-      (when rt
-        (if (keywordp rt) rt (list :struct rt))))))
+      (multiple-value-bind (name ptrp) (pointer-passthrough p)
+        (if ptrp
+            (values :pointer (intern (string-upcase name)))
+            (if (keywordp rt)
+                (values rt (intern (string-upcase p)))
+                (values (list :struct rt) (intern (string-upcase p)))))))))
+
+#+nil(
+      (convert-type '("SPAffineTransform3D" "*thing"))
+      (convert-type '("SPAffineTransform3D" "thing"))
+      (convert-type '("SPAffineTransform3D" nil))
+      )
+
+(defun simple-kebab-name (c-name)
+  (ppcre:regex-replace-all "(SP|3D|Transform)" c-name "")
+  ) ; TODO 2025-09-17 09:50:35
 
 (defun lispify (parsed)
   (loop for (ret-type fn-name params) in parsed
           ;; TODO 2025-09-17 08:17:20 Is foreign-funcall-pointer any more direct/cacheable?
-          collect
-          `(cffi:foreign-funcall
+        collect
+        `(defun ,(simple-kebab-name fn-name)
+             ,(loop for p in params
+                    collect (multiple-value-bind (ty pn) (convert-type p) pn))
+           (cffi:foreign-funcall
             ,(format nil "wrap~a" fn-name)
-            ,@(map 'list (lambda (p) (convert-type p)) params)
-            ,(convert-type (list ret-type nil))))
-  )
+            ,@(loop for p in params
+                    nconc (multiple-value-list (convert-type p)))
+            ,(convert-type (list ret-type nil))))))
 
 #+nil(;; Output file for massaging and compilation.
       (with-open-file (o "wrap_spatial.m" :direction :output :if-exists :supersede)
