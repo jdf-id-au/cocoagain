@@ -44,7 +44,8 @@
 
 (defclass buffer-handle () ; ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴ Metal buffer
   ((cocoa-ref :accessor ns::cocoa-ref :initform nil :documentation "Pointer to MTLBuffer")
-   (size :initarg :size :reader size)
+   (cap :initarg :cap :reader cap)
+   (len :initform 0 :accessor len)
    (mode :initarg :mode :reader mode :initform
          (+ mtl::ResourceStorageModeManaged ; TODO 2025-08-31 22:20:23 differently on +arm64 ?
             mtl::ResourceCPUCacheModeDefaultCache)))) ; vs ...write-combined
@@ -59,8 +60,8 @@
          ;; FIXME 2025-08-17 21:51:28 curious about when this is freed
          ;; ...need autorelease?
          (progn
-           ;;(format t "Making new buffer of size ~a.~%" (size self))
-           (mtk::new-buffer device (size self) (mode self)))
+           ;;(format t "Making new buffer of size ~a.~%" (cap self))
+           (mtk::new-buffer device (cap self) (mode self)))
          "Failed to allocate buffer.")))
 
 (defun parse-vf (vf)
@@ -102,10 +103,14 @@
            (fta (cffi:foreign-type-alignment ty))
            (v (case ty (:float `(coerce (elt vals i) 'single-float))
                     (t `(elt vals i)))))
-      `(defmethod ,fn ((self buffer-handle) vals &key (offset 0)) ; byte offset
-         (let* ((max-size (- (size self) offset))
+      `(defmethod ,fn ((self buffer-handle) vals
+                       &key (offset 0) ; byte offset
+                         (update-len t))
+         (let* ((max-size (- (cap self) offset))
                 (incoming-n (array-total-size vals))
                 (incoming-size (* ,sz incoming-n)))
+           ;; TODO 2025-09-17 21:19:35 consider when could be legit
+           (assert (<= offset (len self)) (offset) "Offset ~a beyond current len ~a." offset (len self))
            ;; TODO 2025-09-06 23:21:12 verify that this would actually be a problem:
            ;; Allows internal updates; different to vertex descriptor's offset which has alignment of 4.
            (assert (zerop (mod offset ,fta)) nil "Wrong alignment: ~a not divisible by ~a." offset ,fta)
@@ -113,6 +118,7 @@
            (assert (<= incoming-size max-size) nil "Too much data ~a vs ~a bytes available." incoming-size max-size)
            (dotimes (i incoming-n)
              (setf (cffi:mem-ref (contents self) ,ty (+ offset (* i ,fts))) ,v))
+           (when update-len (setf (len self) (+ offset incoming-size)))
            ;; TODO 2025-09-07 06:43:31 later synchronizeResource from GPU->CPU (compute shaders...)
            ;; for CPU->GPU copy when managed memory:
            (ns:objc self "didModifyRange:" (:struct ns:range) (ns:range offset (+ offset incoming-size))))))))
@@ -183,21 +189,23 @@ general-purpose."))
   (defmethod ns:draw ((self ns:mtk-view))
     (let* ((ctx (ns:context self))
            ;; TODO 2025-08-30 11:29:14 could automate translation of pointer?
-           (vb (ns::cocoa-ref (elt (vertex-buffers ctx) 0))) ; vertex buffers index
+           (vb (elt (vertex-buffers ctx) 0))
+           (len (/ (len vb) 3 4))
+           (vb-ref (ns::cocoa-ref vb)) ; vertex buffers index
            (cb (mtk::command-buffer (command-queue ctx)))
            (rp (mtk::render-pass-descriptor self)) ;; MTKView clearColor
            
            (ps (pipeline-state ctx))
            (psp (pipeline-state ctx :point)))
-      
+      ;;(format t "len ~a ~%" (len vb))
       (let* ((ce (mtk::render-command-encoder cb rp)))
         (unwind-protect
              (progn
-               (mtk::set-vertex-buffer ce vb)
+               (mtk::set-vertex-buffer ce vb-ref)
                (mtk::set-render-pipeline-state ce ps)
-               (mtk::draw-primitives ce mtl::PrimitiveTypeTriangle 0 3)
+               (mtk::draw-primitives ce mtl::PrimitiveTypeTriangle 0 len)
                (mtk::set-render-pipeline-state ce psp)
-               (mtk::draw-primitives ce mtl::PrimitiveTypePoint 0 3))
+               (mtk::draw-primitives ce mtl::PrimitiveTypePoint 0 len))
           (mtk::end-encoding ce)))
       (mtk::present-drawable cb (mtk::drawable self))
       (mtk::commit cb)))
@@ -226,7 +234,7 @@ general-purpose."))
                                                         :vertex "vertex_point"
                                                         :fragment "fragment_point")))
          (srd (stride 'mtl::VertexFormatFloat3))
-         (vb (make-instance 'buffer-handle :device (ns:device view) :size (* 3 srd)))
+         (vb (make-instance 'buffer-handle :device (ns:device view) :cap (* 1024 srd)))
          (vb-index (add-vertex-buffer ctx vb)))
 
     (mtk::set-vertex-descriptor-attribute vd 1 mtl::VertexFormatFloat3 :index vb-index)
@@ -246,7 +254,10 @@ general-purpose."))
                       -0.7 -0.8  0.0
                        1.0 -1.0  0.0))
 
-    (make-instance 'ns:timer :interval 0.0166 :timer-fn
+    ;; NB 2025-09-17 20:54:45 Currently needs manual timer
+    ;; invalidation for reliable window closing. See
+    ;; core-foundation.lisp.
+    #+nil(make-instance 'ns:timer :interval 0.0166 :timer-fn
                    (lambda (seconds)
                      (put-float3s vb (vector
                                       ;; NB 2025-09-01 21:57:28 timer behaves differently ~1000x arm64 vs x86-64
@@ -263,17 +274,18 @@ general-purpose."))
          (coerce (1- (* (/ loc dim) 2)) 'single-float))
 
        ;; TODO 2025-08-30 11:27:15 double check clos method calling
-       (defmethod ns::mouse-moved ((self ns:mtk-view) event location-x location-y)
+       (defmethod ns::mouse-dragged ((self ns:mtk-view) event location-x location-y)
          (let* ((x (scale-cursor location-x (ns:width self)))
                 (y (scale-cursor location-y (ns:height self)))
                 (vb (elt (vertex-buffers (ns:context self)) 0)))
            ;; NB reader macro for vector #() seemed to quote contents
            (put-float3s vb (vector x y 0.0
                                    -1.0 -1.0 0.0
-                                   (- x) (- y) 0.0))))
+                                   (- x) (- y) 0.0)
+                        :offset (len vb))))
 
        ;; TODO 2025-08-30 20:09:03 remove-method?
-       (defmethod ns::mouse-moved ((self ns::mtk-view) event location-x location-y)
+       (defmethod ns::mouse-down ((self ns::mtk-view) event location-x location-y)
          (declare (ignorable event location-x location-y)))
        )
 

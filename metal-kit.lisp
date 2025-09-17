@@ -88,7 +88,7 @@
 ;; ───────────────────────────────────────────────────────────────────── Shaders
 
 (defun make-library (device source &key (options (cffi:null-pointer)))
-  (ns:protect
+  (ns:protect ; FIXME 2025-09-17 20:57:42 autorelease?
    (ns:objc device "newLibraryWithSource:options:error:"
                    :pointer (ns:autorelease (ns:make-ns-string source))
                    :pointer options

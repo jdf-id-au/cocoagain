@@ -2,6 +2,7 @@
 
 ;; awesome https://stevelosh.com/blog/2018/07/fun-with-macros-if-let/
 
+;; ───────────────────────────────────────────────── Bidirectional ffi shorthand
 (defun intern-format (&rest args)
   (intern (apply #'format nil args)))
 
