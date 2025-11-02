@@ -1,0 +1,20 @@
+3DxClientConnection -> ConnexionClient.h, ConnexionClientAPI.h
+TDxMouseConnexion : NSObject
+ . fConnexionClientID
+ . dataObj : objc wrapper for raw data
+ . accessLock
+ - initConnexion
+ - start3DMouse : SetConnexionHandlers RegisterConnexionClient (using 'Sn3D' sig aka 'Bundle creator OS Type code' ? CFBundleSignature)
+ - terminate3DMouse : UnregisterConnexionClient CleanupConnexionHandlers
+ - connection
+ - updateData : posts Notification
+ - connexionThreadMain : runs currentRunLoop
+
+messageHandler3DMouse C fn
+
+SNAxisDemoAppDelegate : NSObject <NSApplicationDelegate>
+ . connexion : TDxMouseConnexion
+ - tdxNotificationAction : updatesDeviceData on main thread
+ - applicationDidFinishLaunching :
+   - observes Notification with connexion object
+   - starts thread for connexionThreadMain

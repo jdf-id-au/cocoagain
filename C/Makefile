@@ -3,8 +3,9 @@ CFLAGS=-std=c17 -g3 -pedantic -Wall -Wextra \
 -march=native
 # ...increases likelihood of using appropriate SIMD?
 # need -O something too? -ffast-math? no?
-# -fsanitize=address,undefined # asan breaks cffi iirc; maybe fixed libffi 3.4.7?
 
+# asan breaks cffi iirc; maybe fixed libffi 3.4.7?
+SAN=-fsanitize=address,undefined
 
 OBJCFLAGS=-fno-objc-arc -fmodules -mmacos-version-min=15.0
 
@@ -27,3 +28,13 @@ check: check.m ../libcocoagain.dylib
 
 spatial_fns.txt:
 	./fetch_spatial.sh > spatial_fns.txt
+
+Sixaxis.app/Contents/MacOS/sixaxis: sixaxis.m
+	cc $(CFLAGS) -fpascal-strings $(OBJCFLAGS) -framework IOKit -F/Library/Frameworks/ -framework 3DconnexionClient $< -o $@
+
+sixaxis: Sixaxis.app/Contents/MacOS/sixaxis
+
+.PHONY: sixaxis
+
+sixaxisio: sixaxisio.m
+	cc $(CFLAGS) $(SAN) $(OBJCFLAGS) -framework IOKit $< -o $@ 
